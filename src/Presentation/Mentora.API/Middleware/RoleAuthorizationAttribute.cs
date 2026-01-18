@@ -4,7 +4,6 @@ using System.Security.Claims;
 
 namespace Mentora.API.Middleware;
 
-
 [AttributeUsage(AttributeTargets.Class | AttributeTargets.Method)]
 public class RoleAuthorizationAttribute : Attribute, IAuthorizationFilter
 {
@@ -32,3 +31,4 @@ public class RoleAuthorizationAttribute : Attribute, IAuthorizationFilter
             context.Result = new ForbidResult();
         }
     }
+} 

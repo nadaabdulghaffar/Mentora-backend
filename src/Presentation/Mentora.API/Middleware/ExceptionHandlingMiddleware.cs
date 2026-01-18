@@ -4,7 +4,7 @@ using System.Text.Json;
 
 namespace Mentora.API.Middleware;
 
-ublic class ExceptionHandlingMiddleware
+public class ExceptionHandlingMiddleware 
 {
     private readonly RequestDelegate _next;
     private readonly ILogger<ExceptionHandlingMiddleware> _logger;
