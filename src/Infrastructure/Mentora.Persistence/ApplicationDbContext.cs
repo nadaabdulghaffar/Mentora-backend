@@ -1,7 +1,9 @@
 namespace Mentora.Persistence;
 
 using Microsoft.EntityFrameworkCore;
-using MentorshipPlatform.Domain.Entities;
+using Mentora.Domain.Entities;
+using Mentora.Domain.Enums;
+using System.Security.Cryptography;
 
 public class ApplicationDbContext : DbContext
 {
@@ -94,7 +96,6 @@ public class ApplicationDbContext : DbContext
             entity.Property(e => e.LinkedInUrl).HasColumnName("linkedin_url");
             entity.Property(e => e.ProfilePictureUrl).HasColumnName("profile_picture_url");
             entity.Property(e => e.PastExperience).HasColumnName("past_experience");
-            entity.Property(e => e.Status).HasColumnName("status");
             entity.Property(e => e.IsVerified).HasColumnName("is_verified");
             entity.Property(e => e.AverageRating).HasColumnName("average_rating").HasColumnType("decimal(3,2)");
             entity.Property(e => e.TotalReviews).HasColumnName("total_reviews");
@@ -250,14 +251,15 @@ public class ApplicationDbContext : DbContext
                 IsActive = true
             }
         );
+    }
 
 
 
-/**
- * -------------------------------------------------------------------------
+    /**
+     * -------------------------------------------------------------------------
 */
-        private void SeedData(ModelBuilder modelBuilder)
-         {
+    private void SeedData(ModelBuilder modelBuilder)
+    {
         // Seed Countries (Arab Countries)
         modelBuilder.Entity<Country>().HasData(
             new Country { CountryCode = "EG", CountryName = "Egypt" },
@@ -641,3 +643,4 @@ public class ApplicationDbContext : DbContext
         );
 
     }
+}

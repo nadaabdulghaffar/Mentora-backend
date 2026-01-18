@@ -4,7 +4,7 @@ using Microsoft.EntityFrameworkCore;
 using Mentora.Application.Interfaces;
 using Mentora.Application.Interfaces.Repositories;
 using Mentora.Domain.Entities;
-using Mentora.Infrastructure;
+using Mentora.Persistence;
 
 namespace Mentora.Persistence.Repositories;
 

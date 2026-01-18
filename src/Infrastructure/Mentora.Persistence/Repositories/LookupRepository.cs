@@ -4,9 +4,10 @@ using Microsoft.EntityFrameworkCore;
 using Mentora.Application.Interfaces;
 using Mentora.Application.Interfaces.Repositories;
 using Mentora.Domain.Entities;
-using Mentora.Infrastructure;
-
+using DomainEntity = Mentora.Domain.Entities.Domain;
+using Mentora.Persistence;
 namespace Mentora.Persistence.Repositories;
+
 
 public class LookupRepository : ILookupRepository
 {
@@ -17,7 +18,7 @@ public class LookupRepository : ILookupRepository
         _context = context;
     }
 
-    public async Task<List<Domain>> GetDomainsAsync()
+    public async Task<List<DomainEntity>> GetDomainsAsync()
     {
         return await _context.Domains.ToListAsync();
     }

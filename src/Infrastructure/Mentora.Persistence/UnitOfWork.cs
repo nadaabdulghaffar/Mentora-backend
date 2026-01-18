@@ -3,6 +3,7 @@ namespace Mentora.Persistence;
 using Microsoft.EntityFrameworkCore.Storage;
 using Mentora.Application.Interfaces;
 using Mentora.Application.Interfaces.Repositories;
+using Mentora.Persistence.Repositories;
 
 public class UnitOfWork : IUnitOfWork
 {
@@ -16,8 +17,6 @@ public class UnitOfWork : IUnitOfWork
         MenteeProfiles = new MenteeProfileRepository(_context);
         MentorProfiles = new MentorProfileRepository(_context);
         EmailVerificationTokens = new EmailVerificationTokenRepository(_context);
-        RefreshTokens = new RefreshTokenRepository(_context);
-        PasswordResetTokens = new PasswordResetTokenRepository(_context);
         Lookups = new LookupRepository(_context);
     }
 
@@ -25,8 +24,6 @@ public class UnitOfWork : IUnitOfWork
     public IMenteeProfileRepository MenteeProfiles { get; }
     public IMentorProfileRepository MentorProfiles { get; }
     public IEmailVerificationTokenRepository EmailVerificationTokens { get; }
-    public IRefreshTokenRepository RefreshTokens { get; }
-    public IPasswordResetTokenRepository PasswordResetTokens { get; }
     public ILookupRepository Lookups { get; }
 
     public async Task<int> SaveChangesAsync(CancellationToken cancellationToken = default)
