@@ -11,6 +11,7 @@ using Mentora.Infrastructure.Services;
 using Mentora.Persistence;
 using Mentora.Persistence.Repositories;
 using System.Text;
+using Scalar.AspNetCore;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -56,9 +57,8 @@ builder.Services.AddCors(options =>
 
 // Add Controllers
 builder.Services.AddControllers();
-
-// Add OpenAPI/Swagger (.NET 9 built-in)
 builder.Services.AddOpenApi();
+;
 
 var app = builder.Build();
 
@@ -66,11 +66,13 @@ var app = builder.Build();
 if (app.Environment.IsDevelopment())
 {
     app.MapOpenApi();
-    app.UseSwaggerUI(options =>
+    app.MapScalarApiReference(options =>
     {
-        options.SwaggerEndpoint("/openapi/v1.json", "Mentorship Platform API v1");
+        options.Title = "Mentorship Platform API";
+        options.Theme = ScalarTheme.Moon;
     });
 }
+
 
 app.UseHttpsRedirection();
 app.UseCors("AllowReactApp");
