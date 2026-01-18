@@ -19,5 +19,6 @@ namespace Mentora.Domain.Entities
 
         public MenteeProfile? MenteeProfile { get; set; }
         public MentorProfile? MentorProfile { get; set; }
+        public ICollection<EmailVerificationToken> EmailVerificationTokens { get; set; }
     }
 }
