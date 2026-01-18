@@ -1,4 +1,4 @@
-namespace Mentora.Persistence;
+﻿namespace Mentora.Persistence;
 
 using Microsoft.EntityFrameworkCore;
 using Mentora.Domain.Entities;
@@ -183,38 +183,48 @@ public class ApplicationDbContext : DbContext
         });
 
         // MenteeInterest Configuration
+        // MenteeInterest
         modelBuilder.Entity<MenteeInterest>(entity =>
         {
             entity.ToTable("mentee_interests");
             entity.HasKey(e => new { e.UserId, e.TechnologyId });
+
             entity.Property(e => e.UserId).HasColumnName("user_id");
             entity.Property(e => e.TechnologyId).HasColumnName("technology_id");
             entity.Property(e => e.ExperienceLevel).HasColumnName("experience_level");
 
+            // Cascade delete when removing MenteeProfile → good & desired
             entity.HasOne(e => e.MenteeProfile)
-                .WithMany(m => m.MenteeInterests)
-                .HasForeignKey(e => e.UserId);
+                  .WithMany(m => m.MenteeInterests)
+                  .HasForeignKey(e => e.UserId)
+                  .OnDelete(DeleteBehavior.Cascade);
 
+            // NO cascade when deleting Technology → breaks the multiple-path problem
             entity.HasOne(e => e.Technology)
-                .WithMany(t => t.MenteeInterests)
-                .HasForeignKey(e => e.TechnologyId);
+                  .WithMany(t => t.MenteeInterests)
+                  .HasForeignKey(e => e.TechnologyId)
+                  .OnDelete(DeleteBehavior.Restrict);   // ← this is usually best
+                                                        // Alternative: .OnDelete(DeleteBehavior.NoAction);  // also works
         });
 
-        // MentorExpertise Configuration
+        // MentorExpertise – same pattern
         modelBuilder.Entity<MentorExpertise>(entity =>
         {
             entity.ToTable("mentor_expertise");
             entity.HasKey(e => new { e.MentorId, e.TechnologyId });
+
             entity.Property(e => e.MentorId).HasColumnName("mentor_id");
             entity.Property(e => e.TechnologyId).HasColumnName("technology_id");
 
             entity.HasOne(e => e.MentorProfile)
-                .WithMany(m => m.MentorExpertises)
-                .HasForeignKey(e => e.MentorId);
+                  .WithMany(m => m.MentorExpertises)
+                  .HasForeignKey(e => e.MentorId)
+                  .OnDelete(DeleteBehavior.Cascade);
 
             entity.HasOne(e => e.Technology)
-                .WithMany(t => t.MentorExpertises)
-                .HasForeignKey(e => e.TechnologyId);
+                  .WithMany(t => t.MentorExpertises)
+                  .HasForeignKey(e => e.TechnologyId)
+                  .OnDelete(DeleteBehavior.Restrict);   // ← key line
         });
 
         // EmailVerificationToken Configuration
@@ -235,22 +245,24 @@ public class ApplicationDbContext : DbContext
         });
 
 
-        // Seed Admin User
-        var adminUserId = Guid.NewGuid();
-        modelBuilder.Entity<User>().HasData(
-            new User
-            {
-                UserId = adminUserId,
-                Email = "admin@mentora.com",
-                PasswordHash = BCrypt.Net.BCrypt.HashPassword("Admin@123"),
-                FirstName = "System",
-                LastName = "Administrator",
-                Role = UserRole.Admin,
-                CreatedAt = DateTime.UtcNow,
-                UpdatedAt = DateTime.UtcNow,
-                IsActive = true
-            }
-        );
+        //// Seed Admin User// Fixed admin user (non-deterministic values removed)
+        //var fixedAdminGuid = Guid.Parse("a1b2c3d4-e5f6-7890-abcd-ef1234567890"); // ← CHANGE THIS to your own fixed GUID
+        //var fixedDate = new DateTime(2025, 6, 1, 10, 0, 0, DateTimeKind.Utc);
+
+        //modelBuilder.Entity<User>().HasData(
+        //    new User
+        //    {
+        //        UserId = fixedAdminGuid,
+        //        Email = "admin@mentora.com",
+        //        PasswordHash = BCrypt.Net.BCrypt.HashPassword("Admin@123"),
+        //        FirstName = "System",
+        //        LastName = "Administrator",
+        //        Role = UserRole.Admin,
+        //        CreatedAt = fixedDate,
+        //        UpdatedAt = fixedDate,
+        //        IsActive = true
+        //    }
+        //);
     }
 
 

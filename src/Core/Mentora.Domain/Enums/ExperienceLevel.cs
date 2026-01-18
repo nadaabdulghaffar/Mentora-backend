@@ -1,3 +1,5 @@
+namespace Mentora.Domain.Enums;
+
 public enum ExperienceLevel
 {
     Beginner = 1,

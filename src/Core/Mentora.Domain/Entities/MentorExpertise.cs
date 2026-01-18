@@ -1,3 +1,7 @@
+using Mentora.Domain.Enums;
+
+namespace Mentora.Domain.Entities;
+
 public class MentorExpertise
 {
     public Guid MentorId { get; set; }

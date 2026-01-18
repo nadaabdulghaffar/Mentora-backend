@@ -1,3 +1,5 @@
+using Mentora.Domain.Entities;
+
 namespace Mentora.Application.Interfaces.Repositories;
 
 public interface IEmailVerificationTokenRepository

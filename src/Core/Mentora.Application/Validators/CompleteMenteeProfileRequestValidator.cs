@@ -1,6 +1,6 @@
 using FluentValidation;
 using Mentora.Application.DTOs.Auth;
-
+using Mentora.Domain.Enums;
 namespace Mentora.Application.Validators;
 
 public class CompleteMenteeProfileRequestValidator : AbstractValidator<CompleteMenteeProfileRequest>

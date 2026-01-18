@@ -6,7 +6,7 @@ using Mentora.Application.DTOs.Auth;
 using Mentora.Application.DTOs.Common;
 using Mentora.Application.Interfaces;
 using Mentora.Domain.Entities;
-using MentoraDomain.Enums;
+using Mentora.Domain.Enums;
 using System.Security.Cryptography;
 
 namespace Mentora.Application.Services
@@ -60,6 +60,7 @@ namespace Mentora.Application.Services
                 ExpiresAt = DateTime.UtcNow.AddHours(24),
                 CreatedAt = DateTime.UtcNow
             };
+
             await _unitOfWork.EmailVerificationTokens.CreateAsync(emailToken);
             await _unitOfWork.SaveChangesAsync();
 
@@ -78,6 +79,7 @@ namespace Mentora.Application.Services
                 CreatedAt = user.CreatedAt
             };
 
+            return ApiResponse<UserDto>.SuccessResponse(userDto, "Registration successful. Please verify your email.");
         }
 
         public async Task<ApiResponse<bool>> VerifyEmailAsync(VerifyEmailRequest request)
@@ -182,6 +184,137 @@ namespace Mentora.Application.Services
             using var rng = RandomNumberGenerator.Create();
             rng.GetBytes(randomBytes);
             return Convert.ToBase64String(randomBytes).Replace("+", "-").Replace("/", "_").TrimEnd('=');
+        }
+
+        public async Task<ApiResponse<bool>> CompleteMenteeProfileAsync(CompleteMenteeProfileRequest request)
+        {
+            await _unitOfWork.BeginTransactionAsync();
+
+            try
+            {
+                var user = await _unitOfWork.Users.GetByIdAsync(request.UserId);
+                if (user == null || user.Role != UserRole.Mentee)
+                {
+                    return ApiResponse<bool>.ErrorResponse("Invalid user or role");
+                }
+
+                // Parse enums
+                if (!Enum.TryParse<EducationStatus>(request.EducationStatus, true, out var educationStatus))
+                {
+                    return ApiResponse<bool>.ErrorResponse("Invalid education status");
+                }
+
+                if (!Enum.TryParse<ExperienceLevel>(request.ExperienceLevel, true, out var experienceLevel))
+                {
+                    return ApiResponse<bool>.ErrorResponse("Invalid experience level");
+                }
+
+                // Create mentee profile
+                var profile = new MenteeProfile
+                {
+                    UserId = user.UserId,
+                    DomainId = request.DomainId,
+                    EducationStatus = educationStatus,
+                    CurrentLevel = experienceLevel,
+                    CareerGoalId = request.CareerGoalId,
+                    LearningStyleId = request.LearningStyleId,
+                    Bio = request.Bio,
+                    CountryCode = request.CountryCode,
+                    IsEmailVerified = true
+                };
+
+                await _unitOfWork.MenteeProfiles.CreateAsync(profile);
+
+                // Add interests
+                foreach (var techId in request.TechnologyIds)
+                {
+                    var interest = new MenteeInterest
+                    {
+                        UserId = user.UserId,
+                        TechnologyId = techId,
+                        ExperienceLevel = ExperienceLevel.Beginner // Default
+                    };
+                    profile.MenteeInterests.Add(interest);
+                }
+
+                // Activate user account
+                user.IsActive = true;
+                user.UpdatedAt = DateTime.UtcNow;
+                await _unitOfWork.Users.UpdateAsync(user);
+
+                await _unitOfWork.SaveChangesAsync();
+                await _unitOfWork.CommitTransactionAsync();
+
+                // Send welcome email
+                await _emailService.SendWelcomeEmailAsync(user.Email, user.FirstName, "Mentee");
+
+                return ApiResponse<bool>.SuccessResponse(true, "Mentee profile completed successfully");
+            }
+            catch (Exception ex)
+            {
+                await _unitOfWork.RollbackTransactionAsync();
+                return ApiResponse<bool>.ErrorResponse($"Error completing profile: {ex.Message}");
+            }
+        }
+
+        public async Task<ApiResponse<bool>> CompleteMentorProfileAsync(CompleteMentorProfileRequest request)
+        {
+            await _unitOfWork.BeginTransactionAsync();
+
+            try
+            {
+                var user = await _unitOfWork.Users.GetByIdAsync(request.UserId);
+                if (user == null || user.Role != UserRole.Mentor)
+                {
+                    return ApiResponse<bool>.ErrorResponse("Invalid user or role");
+                }
+
+                // Create mentor profile
+                var profile = new MentorProfile
+                {
+                    UserId = user.UserId,
+                    DomainId = request.DomainId,
+                    YearsOfExperience = request.YearsOfExperience,
+                    LinkedInUrl = request.LinkedInUrl,
+                    Bio = request.Bio,
+                    CvUrl = request.CvUrl,
+                    CountryCode = request.CountryCode,
+                    IsEmailVerified = true,
+                    IsVerified = false, // Requires admin approval
+                    CreatedAt = DateTime.UtcNow
+                };
+
+                await _unitOfWork.MentorProfiles.CreateAsync(profile);
+
+                // Add expertise
+                foreach (var techId in request.TechnologyIds)
+                {
+                    var expertise = new MentorExpertise
+                    {
+                        MentorId = user.UserId,
+                        TechnologyId = techId
+                    };
+                    profile.MentorExpertises.Add(expertise);
+                }
+
+                // Activate user account (but mentor needs admin verification)
+                user.IsActive = true;
+                user.UpdatedAt = DateTime.UtcNow;
+                await _unitOfWork.Users.UpdateAsync(user);
+
+                await _unitOfWork.SaveChangesAsync();
+                await _unitOfWork.CommitTransactionAsync();
+
+                // Send welcome email
+                await _emailService.SendWelcomeEmailAsync(user.Email, user.FirstName, "Mentor");
+
+                return ApiResponse<bool>.SuccessResponse(true, "Mentor profile completed. Pending admin verification.");
+            }
+            catch (Exception ex)
+            {
+                await _unitOfWork.RollbackTransactionAsync();
+                return ApiResponse<bool>.ErrorResponse($"Error completing profile: {ex.Message}");
+            }
         }
 
     }

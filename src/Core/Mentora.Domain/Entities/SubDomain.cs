@@ -1,3 +1,5 @@
+namespace Mentora.Domain.Entities;
+
 public class SubDomain
 {
     public int SubDomainId { get; set; }

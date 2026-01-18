@@ -1,13 +1,14 @@
 using System;
+using System.Collections.Generic;
 using System.Threading.Tasks;
 using Mentora.Application.DTOs.Auth;
 using Mentora.Application.DTOs.Common;
-
-using MentorshipPlatform.Domain.Entities;
+using Mentora.Domain.Entities;
+using DomainEntity = Mentora.Domain.Entities.Domain;
 
 public interface ILookupRepository
 {
-    Task<List<Domain>> GetDomainsAsync();
+    Task<List<DomainEntity>> GetDomainsAsync();
     Task<List<SubDomain>> GetSubDomainsByDomainIdAsync(int domainId);
     Task<List<Technology>> GetTechnologiesBySubDomainIdAsync(int subDomainId);
     Task<List<CareerGoal>> GetCareerGoalsAsync();

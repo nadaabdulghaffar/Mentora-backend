@@ -1,3 +1,5 @@
+namespace Mentora.Domain.Entities;
+
 public class CareerGoal
 {
     public int CareerGoalId { get; set; }

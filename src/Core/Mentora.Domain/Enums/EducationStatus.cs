@@ -1,3 +1,5 @@
+namespace Mentora.Domain.Enums;
+
 public enum EducationStatus
 {
     Freshman = 1,

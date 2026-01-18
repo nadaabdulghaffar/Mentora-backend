@@ -1,3 +1,5 @@
+namespace Mentora.Domain.Entities;
+
 public class Technology
 {
     public int TechnologyId { get; set; }

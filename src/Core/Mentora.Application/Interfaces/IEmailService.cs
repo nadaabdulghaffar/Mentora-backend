@@ -1,4 +1,4 @@
-namespace Mentora.Application.Interfaces
+namespace Mentora.Application.Interfaces;
 
 public interface IEmailService
 {

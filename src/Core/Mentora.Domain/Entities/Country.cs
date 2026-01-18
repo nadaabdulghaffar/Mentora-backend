@@ -1,3 +1,5 @@
+namespace Mentora.Domain.Entities;
+
 public class Country
 {
     public string CountryCode { get; set; } = null!;

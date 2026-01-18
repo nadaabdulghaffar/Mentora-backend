@@ -1,3 +1,5 @@
+namespace Mentora.Domain.Entities;
+
 public class MentorProfile
 {
     public Guid UserId { get; set; }

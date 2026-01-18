@@ -1,3 +1,5 @@
+namespace Mentora.Domain.Entities;
+
 public class LearningStyle
 {
     public int LearningStyleId { get; set; }
