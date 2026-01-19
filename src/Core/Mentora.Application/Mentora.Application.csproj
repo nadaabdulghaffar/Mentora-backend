@@ -5,8 +5,8 @@
   </ItemGroup>
 
   <ItemGroup>
-    <Folder Include="ServicesAAbstraction\" />
-    <Folder Include="Services\" />
+    <PackageReference Include="FluentValidation.DependencyInjectionExtensions" Version="12.1.1" />
+    <PackageReference Include="Microsoft.Extensions.Options" Version="10.0.2" />
   </ItemGroup>
 
   <PropertyGroup>
