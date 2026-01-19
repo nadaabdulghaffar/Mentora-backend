@@ -45,10 +45,14 @@ namespace Mentora.Application.Services
                 LastName = request.LastName,
                 Role = UserRole.Mentee, // Default, will be updated later
                 CreatedAt = DateTime.UtcNow,
+                UpdatedAt = null,
                 IsActive = false // Activated after email verification
             };
 
             await _unitOfWork.Users.CreateAsync(user);
+
+            // Save user FIRST before creating token
+            await _unitOfWork.SaveChangesAsync();
 
             // Generate email verification token
             var verificationToken = GenerateSecureToken();
