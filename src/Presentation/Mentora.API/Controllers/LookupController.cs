@@ -3,6 +3,7 @@ using System.Threading.Tasks;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Mentora.Application.Interfaces;
+using Mentora.Application.DTOs.Lookup;
 
 namespace Mentora.API.Controllers;
 
@@ -34,8 +35,18 @@ public class LookupController : ControllerBase
     [HttpGet("subdomains/{subDomainId}/technologies")]
     public async Task<IActionResult> GetTechnologies(int subDomainId)
     {
-        var technologies = await _unitOfWork.Lookups.GetTechnologiesBySubDomainIdAsync(subDomainId);
-        return Ok(technologies);
+        //var technologies = await _unitOfWork.Lookups.GetTechnologiesBySubDomainIdAsync(subDomainId);
+        //return Ok(technologies);
+        var technologies = await _unitOfWork.Lookups
+         .GetTechnologiesBySubDomainIdAsync(subDomainId);
+
+        var result = technologies.Select(t => new TechnologyDto
+        {
+            Id = t.TechnologyId,
+            Name = t.Name
+        }).ToList();
+
+        return Ok(result);
     }
 
     [HttpGet("career-goals")]
