@@ -1,4 +1,4 @@
-using Mentora.Domain.Entities;
+    using Mentora.Domain.Entities;
 using Mentora.Application.Interfaces.Repositories;
 
 namespace Mentora.Application.Interfaces
@@ -10,6 +10,9 @@ namespace Mentora.Application.Interfaces
         IMentorProfileRepository MentorProfiles { get; }
         IEmailVerificationTokenRepository EmailVerificationTokens { get; }
         ILookupRepository Lookups { get; }
+
+        IRefreshTokenRepository RefreshTokens { get; }
+        IPasswordResetTokenRepository PasswordResetTokens { get; }
 
         Task<int> SaveChangesAsync(CancellationToken cancellationToken = default);
         Task BeginTransactionAsync();

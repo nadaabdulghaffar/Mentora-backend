@@ -24,6 +24,9 @@ public class ApplicationDbContext : DbContext
     public DbSet<MenteeInterest> MenteeInterests { get; set; }
     public DbSet<MentorExpertise> MentorExpertises { get; set; }
     public DbSet<EmailVerificationToken> EmailVerificationTokens { get; set; }
+    public DbSet<RefreshToken> RefreshTokens { get; set; }
+    public DbSet<PasswordResetToken> PasswordResetTokens { get; set; }
+
 
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)

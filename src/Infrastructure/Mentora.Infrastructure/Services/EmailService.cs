@@ -75,5 +75,29 @@ public class EmailService : IEmailService
             throw new Exception($"Email sending failed: {ex.Message}");
         }
     }
-}
 
+    public async Task SendPasswordResetEmailAsync(string toEmail, string userName, string resetToken)
+    {
+ 
+        var frontendUrl = _emailSettings.FrontendUrl;
+        var resetLink = $"{frontendUrl}/reset-password?token={resetToken}";
+
+        var subject = "Password Reset Request";
+        var body = $@"
+        <html>
+        <body>
+            <h2>Password Reset</h2>
+            <p>Hello {userName},</p>
+            <p>We received a request to reset your password. Please click the link below to set a new password:</p>
+            <p><a href='{resetLink}'>Reset Password</a></p>
+            <p>This link will expire in 1 hour.</p>
+            <p>If you did not request a password reset, please ignore this email.</p>
+              
+            <p>Thank you,</p>
+            <p>The Mentora Team</p>
+        </body>
+        </html>";
+
+        await SendEmailAsync(toEmail, subject, body);
+    }
+}

@@ -13,5 +13,12 @@ namespace Mentora.Application.Interfaces
         Task<ApiResponse<UserDto>> CompleteRegistrationAsync(CompleteRegistrationRequest request);
         Task<ApiResponse<bool>> CompleteMenteeProfileAsync(CompleteMenteeProfileRequest request);
         Task<ApiResponse<bool>> CompleteMentorProfileAsync(CompleteMentorProfileRequest request);
+    
+        Task<ApiResponse<AuthResponse>> LoginAsync(LoginRequest request);
+        Task<ApiResponse<AuthResponse>> RefreshTokenAsync(string refreshToken);
+        Task<ApiResponse<bool>> LogoutAsync(string refreshToken);
+        Task<ApiResponse<bool>> ForgotPasswordAsync(string email);
+        Task<ApiResponse<bool>> ResetPasswordAsync(ResetPasswordRequest request);
+        Task<ApiResponse<UserDto>> GetCurrentUserAsync(Guid userId);
     }
 }

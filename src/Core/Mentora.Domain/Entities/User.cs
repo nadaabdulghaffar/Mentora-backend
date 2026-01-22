@@ -16,6 +16,7 @@ namespace Mentora.Domain.Entities
         public DateTime? UpdatedAt { get; set; }
         public DateTime? LastLogin { get; set; }
         public bool IsActive { get; set; }
+        public bool IsEmailVerified { get; set; } = false;
 
         public MenteeProfile? MenteeProfile { get; set; }
         public MentorProfile? MentorProfile { get; set; }

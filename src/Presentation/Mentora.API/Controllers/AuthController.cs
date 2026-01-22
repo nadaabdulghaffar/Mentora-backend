@@ -5,6 +5,7 @@ using Microsoft.AspNetCore.Mvc;
 using Mentora.Application.DTOs.Auth;
 using Mentora.Application.Interfaces;
 using System.Security.Claims;
+using Mentora.Domain.Entities;
 
 namespace Mentora.API.Controllers;
 
@@ -77,6 +78,84 @@ public class AuthController : ControllerBase
 
         if (!result.Success)
             return BadRequest(result);
+
+        return Ok(result);
+    }
+    [HttpPost("login")]
+    public async Task<IActionResult> Login(LoginRequest request)
+    {
+        var result = await _authService.LoginAsync(request);
+        if (!result.Success)
+            return BadRequest(result);
+
+        return Ok(result);
+    }
+    [HttpPost("refresh-token")]
+    public async Task<IActionResult> RefreshToken(string refreshToken)
+    {
+        if (string.IsNullOrWhiteSpace(refreshToken))
+        {
+            return BadRequest("Refresh token is required.");
+        }
+
+        var result = await _authService.RefreshTokenAsync(refreshToken);
+
+        if (!result.Success)
+        {
+            return Unauthorized(result);
+        }
+
+        return Ok(result);
+    }
+    [HttpPost("logout")]
+    [Authorize]
+    public async Task<IActionResult> Logout([FromBody] string refreshToken)
+    {
+        await _authService.LogoutAsync(refreshToken);
+        return Ok(new { message = "Logged out successfully" });
+
+    }
+    [HttpPost("forgot-password")]
+    [AllowAnonymous]
+    public async Task<IActionResult> ForgotPassword([FromBody] ForgotPasswordRequest request)
+    {
+        var result = await _authService.ForgotPasswordAsync(request.Email);
+
+        return Ok(result);
+    }
+
+
+    [HttpPost("reset-password")]
+    [AllowAnonymous]
+    public async Task<IActionResult> ResetPassword([FromBody] ResetPasswordRequest request)
+    {
+        var result = await _authService.ResetPasswordAsync(request);
+
+        if (!result.Success)
+        {
+            return BadRequest(result);
+        }
+
+        return Ok(result);
+
+    }
+    [HttpGet("me")]
+    [Authorize]
+    public async Task<IActionResult> GetCurrentUser()
+    {
+        var userIdString = User.FindFirstValue(ClaimTypes.NameIdentifier);
+
+        if (string.IsNullOrEmpty(userIdString) || !Guid.TryParse(userIdString, out var userId))
+        {
+            return Unauthorized(new { message = "Invalid token: User ID is missing." });
+        }
+
+        var result = await _authService.GetCurrentUserAsync(userId);
+
+        if (!result.Success)
+        {
+            return NotFound(result);
+        }
 
         return Ok(result);
     }

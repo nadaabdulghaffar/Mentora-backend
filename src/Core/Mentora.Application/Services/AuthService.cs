@@ -16,16 +16,19 @@ namespace Mentora.Application.Services
         private readonly IUnitOfWork _unitOfWork;
         private readonly IPasswordHasher _passwordHasher;
         private readonly IEmailService _emailService;
-
+        private readonly IJwtService _jwtService;
         public AuthService(
-        IUnitOfWork unitOfWork,
-        IPasswordHasher passwordHasher,
-        IEmailService emailService)
+                IUnitOfWork unitOfWork,
+                IPasswordHasher passwordHasher,
+                IEmailService emailService,
+                 IJwtService jwtService)
         {
             _unitOfWork = unitOfWork;
             _passwordHasher = passwordHasher;
             _emailService = emailService;
+            _jwtService = jwtService;
         }
+
         public async Task<ApiResponse<UserDto>> RegisterInitialAsync(RegisterInitialRequest request)
         {
 
@@ -319,6 +322,181 @@ namespace Mentora.Application.Services
                 await _unitOfWork.RollbackTransactionAsync();
                 return ApiResponse<bool>.ErrorResponse($"Error completing profile: {ex.Message}");
             }
+        }
+        public async Task<ApiResponse<AuthResponse>> LoginAsync(LoginRequest request)
+        {
+            if (request == null || string.IsNullOrWhiteSpace(request.Email))
+                return ApiResponse<AuthResponse>.ErrorResponse("Email Is Required");
+
+            var user = await _unitOfWork.Users.GetByEmailAsync(request.Email.ToLower());
+
+            if (user == null || !_passwordHasher.VerifyPassword(user.PasswordHash, request.Password))
+                return ApiResponse<AuthResponse>.ErrorResponse("Email Or Password Is Wrong");
+
+            if (!user.IsActive)
+                return ApiResponse<AuthResponse>.ErrorResponse("Account Is Not Active");
+
+
+            var accessToken = _jwtService.GenerateAccessToken(user);
+            var refreshTokenStr = _jwtService.GenerateRefreshToken();
+            var refreshToken = RefreshToken.Create(user.UserId, refreshTokenStr, TimeSpan.FromDays(7));
+
+            await _unitOfWork.RefreshTokens.CreateAsync(refreshToken);
+            await _unitOfWork.SaveChangesAsync();
+
+            var response = new AuthResponse
+            {
+                AccessToken = accessToken,
+                RefreshToken = refreshTokenStr,
+                ExpiresIn = 3600,
+                User = new UserDto
+                {
+                    UserId = user.UserId,
+                    Email = user.Email,
+                    FirstName = user.FirstName,
+                    LastName = user.LastName,
+                    Role = user.Role.ToString()
+                }
+            };
+
+            return ApiResponse<AuthResponse>.SuccessResponse(response);
+        }
+
+
+        public async Task<ApiResponse<AuthResponse>> RefreshTokenAsync(string refreshToken)
+        {
+            var storedToken = await _unitOfWork.RefreshTokens.GetByTokenAsync(refreshToken);
+
+
+            if (storedToken == null || !storedToken.IsValid)
+            {
+                return ApiResponse<AuthResponse>.ErrorResponse("Invalid or expired token. Please log in again.");
+            }
+
+            var user = await _unitOfWork.Users.GetByIdAsync(storedToken.UserId);
+            if (user == null || !user.IsActive)
+            {
+                return ApiResponse<AuthResponse>.ErrorResponse("User account not found or inactive.");
+            }
+
+            var newAccessToken = _jwtService.GenerateAccessToken(user);
+            var newRefreshTokenStr = _jwtService.GenerateRefreshToken();
+            var newRefreshToken = RefreshToken.Create(user.UserId, newRefreshTokenStr, TimeSpan.FromDays(7));
+
+            storedToken.Revoke();
+            await _unitOfWork.RefreshTokens.CreateAsync(newRefreshToken);
+            await _unitOfWork.SaveChangesAsync();
+
+            var response = new AuthResponse
+            {
+                AccessToken = newAccessToken,
+                RefreshToken = newRefreshTokenStr,
+                ExpiresIn = 3600,
+                User = new UserDto
+                {
+                    UserId = user.UserId,
+                    Email = user.Email,
+                    FirstName = user.FirstName,
+                    LastName = user.LastName,
+                    Role = user.Role.ToString(),
+                    IsEmailVerified = user.IsEmailVerified,
+                    IsActive = user.IsActive
+                }
+            };
+
+            return ApiResponse<AuthResponse>.SuccessResponse(response);
+        }
+
+
+
+        public async Task<ApiResponse<bool>> LogoutAsync(string refreshToken)
+        {
+            if (string.IsNullOrWhiteSpace(refreshToken))
+            {
+                return ApiResponse<bool>.SuccessResponse(true);
+            }
+
+            var storedToken = await _unitOfWork.RefreshTokens.GetByTokenAsync(refreshToken);
+
+            if (storedToken != null && storedToken.IsValid)
+            {
+                storedToken.Revoke();
+                await _unitOfWork.SaveChangesAsync();
+            }
+
+            return ApiResponse<bool>.SuccessResponse(true, "Logged out successfully.");
+        }
+        public async Task<ApiResponse<bool>> ForgotPasswordAsync(string email)
+        {
+            var user = await _unitOfWork.Users.GetByEmailAsync(email);
+
+            if (user == null)
+            {
+                return ApiResponse<bool>.SuccessResponse(true, "If an account with this email exists, a password reset link has been sent.");
+            }
+
+            var resetTokenString = GenerateSecureToken();
+
+            var passwordResetToken = new PasswordResetToken
+            {
+                UserId = user.UserId,
+                Token = resetTokenString,
+                ExpiresAt = DateTime.UtcNow.AddHours(1)
+            };
+
+            await _unitOfWork.PasswordResetTokens.CreateAsync(passwordResetToken);
+            await _unitOfWork.SaveChangesAsync();
+
+            await _emailService.SendPasswordResetEmailAsync(user.Email, user.FirstName, resetTokenString);
+
+            return ApiResponse<bool>.SuccessResponse(true, "If an account with this email exists, a password reset link has been sent.");
+        }
+        public async Task<ApiResponse<bool>> ResetPasswordAsync(ResetPasswordRequest request)
+        {
+            var storedToken = await _unitOfWork.PasswordResetTokens.GetActiveTokenAsync(request.Token);
+
+            if (storedToken == null)
+            {
+                return ApiResponse<bool>.ErrorResponse("Invalid or expired password reset token.");
+            }
+
+            var user = await _unitOfWork.Users.GetByIdAsync(storedToken.UserId);
+            if (user == null)
+            {
+                return ApiResponse<bool>.ErrorResponse("An error occurred: User not found.");
+            }
+
+            user.PasswordHash = _passwordHasher.HashPassword(request.NewPassword);
+            user.UpdatedAt = DateTime.UtcNow;
+
+            storedToken.UsedAt = DateTime.UtcNow;
+
+            await _unitOfWork.SaveChangesAsync();
+
+            return ApiResponse<bool>.SuccessResponse(true, "Your password has been reset successfully. You can now log in.");
+        }
+
+        public async Task<ApiResponse<UserDto>> GetCurrentUserAsync(Guid userId)
+        {
+            var user = await _unitOfWork.Users.GetByIdAsync(userId);
+
+            if (user == null)
+            {
+                return ApiResponse<UserDto>.ErrorResponse("User not found.");
+            }
+
+            var userDto = new UserDto
+            {
+                UserId = user.UserId,
+                Email = user.Email,
+                FirstName = user.FirstName,
+                LastName = user.LastName,
+                Role = user.Role.ToString(),
+                IsEmailVerified = user.IsEmailVerified,
+                IsActive = user.IsActive
+            };
+
+            return ApiResponse<UserDto>.SuccessResponse(userDto);
         }
 
     }
