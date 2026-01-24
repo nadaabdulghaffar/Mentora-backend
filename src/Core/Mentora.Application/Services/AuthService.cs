@@ -9,6 +9,8 @@ using Mentora.Domain.Entities;
 using Mentora.Domain.Enums;
 using System.Security.Cryptography;
 
+using Microsoft.Extensions.Logging;
+
 namespace Mentora.Application.Services
 {
     public class AuthService : IAuthService
@@ -17,16 +19,20 @@ namespace Mentora.Application.Services
         private readonly IPasswordHasher _passwordHasher;
         private readonly IEmailService _emailService;
         private readonly IJwtService _jwtService;
+        private readonly ILogger<AuthService> _logger;
+
         public AuthService(
                 IUnitOfWork unitOfWork,
                 IPasswordHasher passwordHasher,
                 IEmailService emailService,
-                 IJwtService jwtService)
+                IJwtService jwtService,
+                ILogger<AuthService> logger)
         {
             _unitOfWork = unitOfWork;
             _passwordHasher = passwordHasher;
             _emailService = emailService;
             _jwtService = jwtService;
+            _logger = logger;
         }
 
         public async Task<ApiResponse<UserDto>> RegisterInitialAsync(RegisterInitialRequest request)
@@ -193,33 +199,64 @@ namespace Mentora.Application.Services
             return Convert.ToBase64String(randomBytes).Replace("+", "-").Replace("/", "_").TrimEnd('=');
         }
 
-        public async Task<ApiResponse<bool>> CompleteMenteeProfileAsync(CompleteMenteeProfileRequest request)
+        public async Task<ApiResponse<bool>> CompleteMenteeProfileAsync(
+        Guid userId,
+        CompleteMenteeProfileRequest request)
         {
             await _unitOfWork.BeginTransactionAsync();
 
             try
             {
-                var user = await _unitOfWork.Users.GetByIdAsync(request.UserId);
-                if (user == null || user.Role != UserRole.Mentee)
+                var user = await _unitOfWork.Users.GetByIdAsync(userId);
+                if (user == null)
                 {
-                    return ApiResponse<bool>.ErrorResponse("Invalid user or role");
+                    return ApiResponse<bool>.ErrorResponse("User not found");
+                }
+
+                if (user.Role != UserRole.Mentee)
+                {
+                    return ApiResponse<bool>.ErrorResponse("User is not a mentee");
+                }
+
+                // Check if profile already exists
+                var existingProfile = await _unitOfWork.MenteeProfiles.GetByUserIdAsync(userId);
+                if (existingProfile != null)
+                {
+                    return ApiResponse<bool>.ErrorResponse("Profile already exists");
                 }
 
                 // Parse enums
                 if (!Enum.TryParse<EducationStatus>(request.EducationStatus, true, out var educationStatus))
                 {
-                    return ApiResponse<bool>.ErrorResponse("Invalid education status");
+                    return ApiResponse<bool>.ErrorResponse($"Invalid education status: {request.EducationStatus}");
                 }
 
                 if (!Enum.TryParse<ExperienceLevel>(request.ExperienceLevel, true, out var experienceLevel))
                 {
-                    return ApiResponse<bool>.ErrorResponse("Invalid experience level");
+                    return ApiResponse<bool>.ErrorResponse($"Invalid experience level: {request.ExperienceLevel}");
+                }
+
+                // Validate domain exists
+                var domains = await _unitOfWork.Lookups.GetDomainsAsync();
+                if (!domains.Any(d => d.DomainId == request.DomainId))
+                {
+                    return ApiResponse<bool>.ErrorResponse("Invalid career field selected");
+                }
+
+                // Validate SubDomains exist
+                foreach (var subDomainId in request.SubDomainIds)
+                {
+                    var subDomains = await _unitOfWork.Lookups.GetSubDomainsByDomainIdAsync(request.DomainId);
+                    if (!subDomains.Any(s => s.SubDomainId == subDomainId))
+                    {
+                        return ApiResponse<bool>.ErrorResponse($"Invalid expertise area: {subDomainId}");
+                    }
                 }
 
                 // Create mentee profile
                 var profile = new MenteeProfile
                 {
-                    UserId = user.UserId,
+                    UserId = userId,
                     DomainId = request.DomainId,
                     EducationStatus = educationStatus,
                     CurrentLevel = experienceLevel,
@@ -232,14 +269,30 @@ namespace Mentora.Application.Services
 
                 await _unitOfWork.MenteeProfiles.CreateAsync(profile);
 
-                // Add interests
+                // Add SubDomains (Relevant expertise)
+                foreach (var subDomainId in request.SubDomainIds)
+                {
+                    var menteeSubDomain = new MenteeSubDomain
+                    {
+                        UserId = userId,
+                        SubDomainId = subDomainId
+                    };
+                    profile.MenteeSubDomains.Add(menteeSubDomain);
+                }
+
+                // Add Technologies (Tools) - 1 to 5 selections
+                if (request.TechnologyIds.Count < 1 || request.TechnologyIds.Count > 5)
+                {
+                    return ApiResponse<bool>.ErrorResponse("Please select between 1 and 5 tools");
+                }
+
                 foreach (var techId in request.TechnologyIds)
                 {
                     var interest = new MenteeInterest
                     {
-                        UserId = user.UserId,
+                        UserId = userId,
                         TechnologyId = techId,
-                        ExperienceLevel = ExperienceLevel.Beginner // Default
+                        ExperienceLevel = ExperienceLevel.Beginner
                     };
                     profile.MenteeInterests.Add(interest);
                 }
@@ -260,31 +313,63 @@ namespace Mentora.Application.Services
             catch (Exception ex)
             {
                 await _unitOfWork.RollbackTransactionAsync();
+                _logger.LogError(ex, "Error completing mentee profile for user {UserId}", userId);
                 return ApiResponse<bool>.ErrorResponse($"Error completing profile: {ex.Message}");
             }
         }
 
-        public async Task<ApiResponse<bool>> CompleteMentorProfileAsync(CompleteMentorProfileRequest request)
+        public async Task<ApiResponse<bool>> CompleteMentorProfileAsync(
+            Guid userId,
+            CompleteMentorProfileRequest request)
         {
             await _unitOfWork.BeginTransactionAsync();
 
             try
             {
-                var user = await _unitOfWork.Users.GetByIdAsync(request.UserId);
-                if (user == null || user.Role != UserRole.Mentor)
+                var user = await _unitOfWork.Users.GetByIdAsync(userId);
+                if (user == null)
                 {
-                    return ApiResponse<bool>.ErrorResponse("Invalid user or role");
+                    return ApiResponse<bool>.ErrorResponse("User not found");
+                }
+
+                if (user.Role != UserRole.Mentor)
+                {
+                    return ApiResponse<bool>.ErrorResponse("User is not a mentor");
+                }
+
+                // Check if profile already exists
+                var existingProfile = await _unitOfWork.MentorProfiles.GetByUserIdAsync(userId);
+                if (existingProfile != null)
+                {
+                    return ApiResponse<bool>.ErrorResponse("Profile already exists");
+                }
+
+                // Validate domain exists
+                var domains = await _unitOfWork.Lookups.GetDomainsAsync();
+                if (!domains.Any(d => d.DomainId == request.DomainId))
+                {
+                    return ApiResponse<bool>.ErrorResponse("Invalid career field selected");
+                }
+
+                // Validate SubDomains exist
+                foreach (var subDomainId in request.SubDomainIds)
+                {
+                    var subDomains = await _unitOfWork.Lookups.GetSubDomainsByDomainIdAsync(request.DomainId);
+                    if (!subDomains.Any(s => s.SubDomainId == subDomainId))
+                    {
+                        return ApiResponse<bool>.ErrorResponse($"Invalid expertise area: {subDomainId}");
+                    }
                 }
 
                 // Create mentor profile
                 var profile = new MentorProfile
                 {
-                    UserId = user.UserId,
+                    UserId = userId,
                     DomainId = request.DomainId,
                     YearsOfExperience = request.YearsOfExperience,
                     LinkedInUrl = request.LinkedInUrl,
                     Bio = request.Bio,
-                    CvUrl = request.CvUrl,
+                    CvUrl = request.CvUrl,  // CV URL from file upload
                     CountryCode = request.CountryCode,
                     IsEmailVerified = true,
                     IsVerified = false, // Requires admin approval
@@ -293,12 +378,28 @@ namespace Mentora.Application.Services
 
                 await _unitOfWork.MentorProfiles.CreateAsync(profile);
 
-                // Add expertise
+                // Add SubDomains (Relevant expertise)
+                foreach (var subDomainId in request.SubDomainIds)
+                {
+                    var mentorSubDomain = new MentorSubDomain
+                    {
+                        MentorId = userId,
+                        SubDomainId = subDomainId
+                    };
+                    profile.MentorSubDomains.Add(mentorSubDomain);
+                }
+
+                // Add Technologies (Tools) - 1 to 5 selections
+                if (request.TechnologyIds.Count < 1 || request.TechnologyIds.Count > 5)
+                {
+                    return ApiResponse<bool>.ErrorResponse("Please select between 1 and 5 tools");
+                }
+
                 foreach (var techId in request.TechnologyIds)
                 {
                     var expertise = new MentorExpertise
                     {
-                        MentorId = user.UserId,
+                        MentorId = userId,
                         TechnologyId = techId
                     };
                     profile.MentorExpertises.Add(expertise);
@@ -315,11 +416,15 @@ namespace Mentora.Application.Services
                 // Send welcome email
                 await _emailService.SendWelcomeEmailAsync(user.Email, user.FirstName, "Mentor");
 
-                return ApiResponse<bool>.SuccessResponse(true, "Mentor profile completed. Pending admin verification.");
+                return ApiResponse<bool>.SuccessResponse(
+                    true,
+                    "Mentor profile completed successfully. Your profile is pending admin verification."
+                );
             }
             catch (Exception ex)
             {
                 await _unitOfWork.RollbackTransactionAsync();
+                _logger.LogError(ex, "Error completing mentor profile for user {UserId}", userId);
                 return ApiResponse<bool>.ErrorResponse($"Error completing profile: {ex.Message}");
             }
         }

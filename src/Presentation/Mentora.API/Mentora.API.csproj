@@ -6,7 +6,7 @@
     <ImplicitUsings>enable</ImplicitUsings>
   </PropertyGroup>
 
-  <ItemGroup>
+	<ItemGroup>
     <PackageReference Include="FluentValidation.AspNetCore" Version="11.3.1" />
     <PackageReference Include="Microsoft.AspNetCore.Authentication.JwtBearer" Version="8.0.2" />
     <PackageReference Include="Microsoft.AspNetCore.OpenApi" Version="9.0.8" />
@@ -22,5 +22,10 @@
     <ProjectReference Include="..\..\Infrastructure\Mentora.Infrastructure\Mentora.Infrastructure.csproj" />
     <ProjectReference Include="..\..\Infrastructure\Mentora.Persistence\Mentora.Persistence.csproj" />
   </ItemGroup>
+	
+  <ItemGroup>
+		<Folder Include="wwwroot\uploads\cvs\" />
+		<Folder Include="wwwroot\uploads\profile-pictures\" />
+	</ItemGroup>
 
 </Project>

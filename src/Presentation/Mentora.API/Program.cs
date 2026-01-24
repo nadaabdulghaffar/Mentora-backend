@@ -38,6 +38,12 @@ builder.Services.AddScoped<IAuthService, AuthService>();
 builder.Services.AddScoped<IPasswordHasher, PasswordHasher>();
 builder.Services.AddScoped<IEmailService, EmailService>();
 builder.Services.AddScoped<IJwtService, JwtService>();
+builder.Services.AddScoped<IFileUploadService, FileUploadService>();
+
+
+// Add FluentValidation
+builder.Services.AddFluentValidationAutoValidation();
+builder.Services.AddValidatorsFromAssemblyContaining<RegisterInitialRequestValidator>();
 
 // Add Authorization
 builder.Services.AddAuthorization(options =>
@@ -62,7 +68,10 @@ builder.Services.AddCors(options =>
 // Add Controllers
 builder.Services.AddControllers();
 builder.Services.AddOpenApi();
-;
+
+// Configure static files for serving uploaded files
+builder.Services.AddDirectoryBrowser();
+
 
 var app = builder.Build();
 
@@ -77,7 +86,10 @@ if (app.Environment.IsDevelopment())
     });
 }
 
+// Enable static files (for serving uploaded files)
+app.UseStaticFiles();
 
+app.MapControllers();
 app.UseHttpsRedirection();
 app.UseCors("AllowReactApp");
 app.UseAuthentication();
@@ -89,6 +101,13 @@ using (var scope = app.Services.CreateScope())
 {
     var db = scope.ServiceProvider.GetRequiredService<ApplicationDbContext>();
     db.Database.Migrate();
+    // Create uploads folder
+    var webRoot = app.Environment.WebRootPath;
+    if (!string.IsNullOrEmpty(webRoot))
+    {
+        Directory.CreateDirectory(Path.Combine(webRoot, "uploads", "cvs"));
+        Directory.CreateDirectory(Path.Combine(webRoot, "uploads", "profile-pictures"));
+    }
 }
 
 app.Run();

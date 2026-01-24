@@ -11,8 +11,8 @@ namespace Mentora.Application.Interfaces
         Task<ApiResponse<bool>> VerifyEmailAsync(VerifyEmailRequest request);
         Task<ApiResponse<bool>> ResendVerificationEmailAsync(string email);
         Task<ApiResponse<UserDto>> CompleteRegistrationAsync(CompleteRegistrationRequest request);
-        Task<ApiResponse<bool>> CompleteMenteeProfileAsync(CompleteMenteeProfileRequest request);
-        Task<ApiResponse<bool>> CompleteMentorProfileAsync(CompleteMentorProfileRequest request);
+        Task<ApiResponse<bool>> CompleteMenteeProfileAsync(Guid userId, CompleteMenteeProfileRequest request);
+        Task<ApiResponse<bool>> CompleteMentorProfileAsync(Guid userId, CompleteMentorProfileRequest request);
     
         Task<ApiResponse<AuthResponse>> LoginAsync(LoginRequest request);
         Task<ApiResponse<AuthResponse>> RefreshTokenAsync(string refreshToken);

@@ -23,6 +23,8 @@ public class ApplicationDbContext : DbContext
     public DbSet<MentorProfile> MentorProfiles { get; set; }
     public DbSet<MenteeInterest> MenteeInterests { get; set; }
     public DbSet<MentorExpertise> MentorExpertises { get; set; }
+    public DbSet<MenteeSubDomain> MenteeSubDomains { get; set; }
+    public DbSet<MentorSubDomain> MentorSubDomains { get; set; } 
     public DbSet<EmailVerificationToken> EmailVerificationTokens { get; set; }
     public DbSet<RefreshToken> RefreshTokens { get; set; }
     public DbSet<PasswordResetToken> PasswordResetTokens { get; set; }
@@ -197,18 +199,17 @@ public class ApplicationDbContext : DbContext
             entity.Property(e => e.TechnologyId).HasColumnName("technology_id");
             entity.Property(e => e.ExperienceLevel).HasColumnName("experience_level");
 
-            // Cascade delete when removing MenteeProfile → good & desired
+            // Cascade delete when removing MenteeProfile
             entity.HasOne(e => e.MenteeProfile)
                   .WithMany(m => m.MenteeInterests)
                   .HasForeignKey(e => e.UserId)
                   .OnDelete(DeleteBehavior.Cascade);
 
-            // NO cascade when deleting Technology → breaks the multiple-path problem
+            // NO cascade when deleting Technology
             entity.HasOne(e => e.Technology)
                   .WithMany(t => t.MenteeInterests)
                   .HasForeignKey(e => e.TechnologyId)
-                  .OnDelete(DeleteBehavior.Restrict);   // ← this is usually best
-                                                        // Alternative: .OnDelete(DeleteBehavior.NoAction);  // also works
+                  .OnDelete(DeleteBehavior.Restrict);  
         });
 
         // MentorExpertise – same pattern
@@ -228,7 +229,7 @@ public class ApplicationDbContext : DbContext
             entity.HasOne(e => e.Technology)
                   .WithMany(t => t.MentorExpertises)
                   .HasForeignKey(e => e.TechnologyId)
-                  .OnDelete(DeleteBehavior.Restrict);   // ← key line
+                  .OnDelete(DeleteBehavior.Restrict); 
         });
 
         // EmailVerificationToken Configuration
@@ -267,6 +268,40 @@ public class ApplicationDbContext : DbContext
         //        IsActive = true
         //    }
         //);
+
+
+        // MenteeSubDomain Configuration (NEW)
+        modelBuilder.Entity<MenteeSubDomain>(entity =>
+        {
+            entity.HasKey(e => new { e.UserId, e.SubDomainId });
+
+            entity.HasOne(e => e.MenteeProfile)
+                .WithMany(m => m.MenteeSubDomains)
+                .HasForeignKey(e => e.UserId)
+                .OnDelete(DeleteBehavior.Cascade);
+
+            entity.HasOne(e => e.SubDomain)
+                .WithMany()
+                .HasForeignKey(e => e.SubDomainId)
+                .OnDelete(DeleteBehavior.Restrict);
+        });
+
+        // MentorSubDomain Configuration (NEW)
+        modelBuilder.Entity<MentorSubDomain>(entity =>
+        {
+            entity.HasKey(e => new { e.MentorId, e.SubDomainId });
+
+            entity.HasOne(e => e.MentorProfile)
+                .WithMany(m => m.MentorSubDomains)
+                .HasForeignKey(e => e.MentorId)
+                .OnDelete(DeleteBehavior.Cascade);
+
+            entity.HasOne(e => e.SubDomain)
+                .WithMany()
+                .HasForeignKey(e => e.SubDomainId)
+                .OnDelete(DeleteBehavior.Restrict);
+        });
+
         modelBuilder.SeedData();
     }
 

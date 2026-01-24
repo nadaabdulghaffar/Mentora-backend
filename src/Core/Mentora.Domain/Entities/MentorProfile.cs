@@ -17,8 +17,12 @@ public class MentorProfile
     public bool IsEmailVerified { get; set; }
     public string? CvUrl { get; set; }
 
+    // Navigation properties
     public User User { get; set; } = null!;
     public Domain Domain { get; set; } = null!;
     public Country? Country { get; set; }
+
+    // Relevant expertise (SubDomains) - Multi-select
+    public ICollection<MentorSubDomain> MentorSubDomains { get; set; } = new List<MentorSubDomain>();
     public ICollection<MentorExpertise> MentorExpertises { get; set; } = new List<MentorExpertise>();
 }

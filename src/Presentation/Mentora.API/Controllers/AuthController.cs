@@ -6,6 +6,7 @@ using Mentora.Application.DTOs.Auth;
 using Mentora.Application.Interfaces;
 using System.Security.Claims;
 using Mentora.Domain.Entities;
+using Mentora.API.Extensions;
 
 namespace Mentora.API.Controllers;
 
@@ -60,10 +61,13 @@ public class AuthController : ControllerBase
         return Ok(result);
     }
 
+    [Authorize]
     [HttpPost("complete-mentee-profile")]
     public async Task<IActionResult> CompleteMenteeProfile([FromBody] CompleteMenteeProfileRequest request)
     {
-        var result = await _authService.CompleteMenteeProfileAsync(request);
+        var userId = User.GetUserId();
+
+        var result = await _authService.CompleteMenteeProfileAsync(userId, request);
 
         if (!result.Success)
             return BadRequest(result);
@@ -71,16 +75,20 @@ public class AuthController : ControllerBase
         return Ok(result);
     }
 
+    [Authorize]
     [HttpPost("complete-mentor-profile")]
     public async Task<IActionResult> CompleteMentorProfile([FromBody] CompleteMentorProfileRequest request)
     {
-        var result = await _authService.CompleteMentorProfileAsync(request);
+        var userId = User.GetUserId();
+
+        var result = await _authService.CompleteMentorProfileAsync(userId, request);
 
         if (!result.Success)
             return BadRequest(result);
 
         return Ok(result);
     }
+
     [HttpPost("login")]
     public async Task<IActionResult> Login(LoginRequest request)
     {
