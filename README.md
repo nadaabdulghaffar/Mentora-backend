@@ -4,7 +4,7 @@ This repository contains the backend API for the Mentora application.
 It is implemented in C# using .NET (Core / ASP.NET) and provides the server-side logic, database access, authentication, and RESTful endpoints required by the frontend.
 
 ## 1. Getting Started
-### Prerequisites
+Prerequisites
 
 + .NET 8.0 SDK or higher
 + SQL Server (LocalDB, Express, or Full)
@@ -12,13 +12,13 @@ It is implemented in C# using .NET (Core / ASP.NET) and provides the server-side
 + Node.js & React (for frontend)
 
 ## 2. Getting Started
-### Clone the repository:
+Clone the repository:
 ```bash
 git clone https://github.com/nadaabdulghaffar/Mentora-backend.git
 cd Mentora-backend
 ```
 ## 3. Installing Dependencies
-### Restore NuGet packages and project dependencies:
+Restore NuGet packages and project dependencies:
 ```bash
 dotnet restore
 ```
