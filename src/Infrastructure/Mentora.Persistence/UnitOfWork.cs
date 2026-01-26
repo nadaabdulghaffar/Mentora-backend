@@ -20,6 +20,8 @@ public class UnitOfWork : IUnitOfWork
         RefreshTokens = new RefreshTokenRepository(_context);
         PasswordResetTokens = new PasswordResetTokenRepository(_context);
         Lookups = new LookupRepository(_context);
+
+        RegistrationSessions = new RegistrationSessionRepository(_context);
     }
 
     public IUserRepository Users { get; }
@@ -29,6 +31,7 @@ public class UnitOfWork : IUnitOfWork
     public IRefreshTokenRepository RefreshTokens { get; }
     public IPasswordResetTokenRepository PasswordResetTokens { get; }
     public ILookupRepository Lookups { get; }
+    public IRegistrationSessionRepository RegistrationSessions { get; }
 
     public async Task<int> SaveChangesAsync(CancellationToken cancellationToken = default)
     {

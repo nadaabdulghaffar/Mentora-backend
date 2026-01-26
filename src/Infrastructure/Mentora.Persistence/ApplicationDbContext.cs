@@ -29,7 +29,7 @@ public class ApplicationDbContext : DbContext
     public DbSet<RefreshToken> RefreshTokens { get; set; }
     public DbSet<PasswordResetToken> PasswordResetTokens { get; set; }
 
-
+    public DbSet<RegistrationSession> RegistrationSessions { get; set; }
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
@@ -249,6 +249,43 @@ public class ApplicationDbContext : DbContext
                 .HasForeignKey(e => e.UserId);
         });
 
+        // RefreshToken Configuration
+        modelBuilder.Entity<RefreshToken>(entity =>
+        {
+            entity.ToTable("refresh_tokens");
+            entity.HasKey(e => e.TokenId);
+            entity.Property(e => e.TokenId).HasColumnName("token_id");
+            entity.Property(e => e.UserId).HasColumnName("user_id");
+            entity.Property(e => e.TokenHash).HasColumnName("token_hash").IsRequired();
+            entity.Property(e => e.ExpiresAt).HasColumnName("expires_at");
+            entity.Property(e => e.CreatedAt).HasColumnName("created_at");
+            entity.Property(e => e.IsRevoked).HasColumnName("is_revoked");
+            entity.Property(e => e.RevokedAt).HasColumnName("revoked_at");
+
+            entity.HasOne(e => e.User)
+                  .WithMany()
+                  .HasForeignKey(e => e.UserId)
+                  .OnDelete(DeleteBehavior.Cascade);
+        });
+
+        // PasswordResetToken Configuration
+        modelBuilder.Entity<PasswordResetToken>(entity =>
+        {
+            entity.ToTable("password_reset_tokens");
+            entity.HasKey(e => e.Id);
+            entity.Property(e => e.Id).HasColumnName("id");
+            entity.Property(e => e.UserId).HasColumnName("user_id");
+            entity.Property(e => e.Token).HasColumnName("token").IsRequired();
+            entity.Property(e => e.ExpiresAt).HasColumnName("expires_at");
+            entity.Property(e => e.CreatedAt).HasColumnName("created_at");
+            entity.Property(e => e.UsedAt).HasColumnName("used_at");
+
+            entity.HasOne(e => e.User)
+                  .WithMany()
+                  .HasForeignKey(e => e.UserId)
+                  .OnDelete(DeleteBehavior.Cascade);
+        });
+
 
         //// Seed Admin User// Fixed admin user (non-deterministic values removed)
         //var fixedAdminGuid = Guid.Parse("a1b2c3d4-e5f6-7890-abcd-ef1234567890"); // ← CHANGE THIS to your own fixed GUID
@@ -301,6 +338,31 @@ public class ApplicationDbContext : DbContext
                 .HasForeignKey(e => e.SubDomainId)
                 .OnDelete(DeleteBehavior.Restrict);
         });
+
+        modelBuilder.Entity<RegistrationSession>(entity =>
+        {
+            entity.HasKey(e => e.SessionId);
+
+            entity.Property(e => e.SessionToken)
+                .IsRequired()
+                .HasMaxLength(500);
+
+            entity.HasIndex(e => e.SessionToken)
+                .IsUnique();
+
+            entity.Property(e => e.CurrentStep)
+                .IsRequired();
+
+            entity.HasOne(e => e.User)
+                .WithMany()
+                .HasForeignKey(e => e.UserId)
+                .OnDelete(DeleteBehavior.Cascade);
+
+            // Index for faster lookups
+            entity.HasIndex(e => e.UserId);
+            entity.HasIndex(e => new { e.ExpiresAt, e.IsCompleted });
+        });
+
 
         modelBuilder.SeedData();
     }

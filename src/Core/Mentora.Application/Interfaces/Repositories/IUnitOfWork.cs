@@ -10,6 +10,7 @@ namespace Mentora.Application.Interfaces
         IMentorProfileRepository MentorProfiles { get; }
         IEmailVerificationTokenRepository EmailVerificationTokens { get; }
         ILookupRepository Lookups { get; }
+        IRegistrationSessionRepository RegistrationSessions { get; } 
 
         IRefreshTokenRepository RefreshTokens { get; }
         IPasswordResetTokenRepository PasswordResetTokens { get; }

@@ -94,20 +94,23 @@ app.UseHttpsRedirection();
 app.UseCors("AllowReactApp");
 app.UseAuthentication();
 app.UseAuthorization();
-app.MapControllers();
 
 // Ensure database is created (for development)
 using (var scope = app.Services.CreateScope())
 {
     var db = scope.ServiceProvider.GetRequiredService<ApplicationDbContext>();
     db.Database.Migrate();
+    
     // Create uploads folder
-    var webRoot = app.Environment.WebRootPath;
-    if (!string.IsNullOrEmpty(webRoot))
+    var webRoot = app.Environment.WebRootPath ?? Path.Combine(app.Environment.ContentRootPath, "wwwroot");
+    if (!Directory.Exists(webRoot))
     {
-        Directory.CreateDirectory(Path.Combine(webRoot, "uploads", "cvs"));
-        Directory.CreateDirectory(Path.Combine(webRoot, "uploads", "profile-pictures"));
+        Directory.CreateDirectory(webRoot);
     }
+    
+    var uploadsPath = Path.Combine(webRoot, "uploads");
+    Directory.CreateDirectory(Path.Combine(uploadsPath, "cvs"));
+    Directory.CreateDirectory(Path.Combine(uploadsPath, "profile-pictures"));
 }
 
 app.Run();
