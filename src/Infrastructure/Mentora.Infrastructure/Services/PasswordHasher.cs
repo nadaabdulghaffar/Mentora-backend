@@ -14,8 +14,11 @@ public class PasswordHasher : IPasswordHasher
     }
 
     public bool VerifyPassword(string password, string passwordHash)
-    {
-        return BCrypt.Net.BCrypt.Verify(password, passwordHash);
+        {
+            if (string.IsNullOrEmpty(passwordHash)) return false;
+
+         return BCrypt.Net.BCrypt.Verify(password, passwordHash);
+
     }
 
 }

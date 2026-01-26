@@ -44,9 +44,9 @@ public class AuthController : ControllerBase
     }
 
     [HttpPost("resend-verification")]
-    public async Task<IActionResult> ResendVerification([FromBody] string email)
+    public async Task<IActionResult> ResendVerification([FromBody] VerifyEmailRequest request)
     {
-        var result = await _authService.ResendVerificationEmailAsync(email);
+        var result = await _authService.ResendVerificationEmailAsync(request);
         return Ok(result);
     }
 
@@ -99,14 +99,11 @@ public class AuthController : ControllerBase
         return Ok(result);
     }
     [HttpPost("refresh-token")]
-    public async Task<IActionResult> RefreshToken(string refreshToken)
+    public async Task<IActionResult> RefreshToken([FromBody]RefreshTokenRequest request)
     {
-        if (string.IsNullOrWhiteSpace(refreshToken))
-        {
-            return BadRequest("Refresh token is required.");
-        }
+     
 
-        var result = await _authService.RefreshTokenAsync(refreshToken);
+        var result = await _authService.RefreshTokenAsync(request);
 
         if (!result.Success)
         {
@@ -115,11 +112,12 @@ public class AuthController : ControllerBase
 
         return Ok(result);
     }
-    [HttpPost("logout")]
     [Authorize]
-    public async Task<IActionResult> Logout([FromBody] string refreshToken)
+    [HttpPost("logout")]
+  
+    public async Task<IActionResult> Logout([FromBody] RefreshTokenRequest request)
     {
-        await _authService.LogoutAsync(refreshToken);
+        await _authService.LogoutAsync(request);
         return Ok(new { message = "Logged out successfully" });
 
     }

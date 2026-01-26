@@ -121,9 +121,9 @@ namespace Mentora.Application.Services
             return ApiResponse<bool>.SuccessResponse(true, "Email verified successfully. Please complete your registration.");
         }
 
-        public async Task<ApiResponse<bool>> ResendVerificationEmailAsync(string email)
+        public async Task<ApiResponse<bool>> ResendVerificationEmailAsync(VerifyEmailRequest request)
         {
-            var user = await _unitOfWork.Users.GetByEmailAsync(email);
+            var user = await _unitOfWork.Users.GetByEmailAsync(request.Email);
             if (user == null)
             {
                 return ApiResponse<bool>.ErrorResponse("User not found");
@@ -428,18 +428,26 @@ namespace Mentora.Application.Services
                 return ApiResponse<bool>.ErrorResponse($"Error completing profile: {ex.Message}");
             }
         }
+ 
         public async Task<ApiResponse<AuthResponse>> LoginAsync(LoginRequest request)
         {
-            if (request == null || string.IsNullOrWhiteSpace(request.Email))
+            if (request == null || string.IsNullOrEmpty(request.Email))
                 return ApiResponse<AuthResponse>.ErrorResponse("Email Is Required");
 
-            var user = await _unitOfWork.Users.GetByEmailAsync(request.Email.ToLower());
+            var user = await _unitOfWork.Users.GetByEmailAsync(request.Email.Trim().ToLower());
 
-            if (user == null || !_passwordHasher.VerifyPassword(user.PasswordHash, request.Password))
+            if (user == null)
                 return ApiResponse<AuthResponse>.ErrorResponse("Email Or Password Is Wrong");
 
+          
+            bool isPasswordValid = _passwordHasher.VerifyPassword(request.Password, user.PasswordHash);
+
+            if (!isPasswordValid)
+                return ApiResponse<AuthResponse>.ErrorResponse("Email Or Password Is Wrong");
+
+
             if (!user.IsActive)
-                return ApiResponse<AuthResponse>.ErrorResponse("Account Is Not Active");
+               return ApiResponse<AuthResponse>.ErrorResponse("Account Is Not Active");
 
 
             var accessToken = _jwtService.GenerateAccessToken(user);
@@ -468,9 +476,9 @@ namespace Mentora.Application.Services
         }
 
 
-        public async Task<ApiResponse<AuthResponse>> RefreshTokenAsync(string refreshToken)
+        public async Task<ApiResponse<AuthResponse>> RefreshTokenAsync(RefreshTokenRequest request)
         {
-            var storedToken = await _unitOfWork.RefreshTokens.GetByTokenAsync(refreshToken);
+            var storedToken = await _unitOfWork.RefreshTokens.GetByTokenAsync(request.RefreshToken);
 
 
             if (storedToken == null || !storedToken.IsValid)
@@ -514,14 +522,14 @@ namespace Mentora.Application.Services
 
 
 
-        public async Task<ApiResponse<bool>> LogoutAsync(string refreshToken)
+        public async Task<ApiResponse<bool>> LogoutAsync(RefreshTokenRequest request)
         {
-            if (string.IsNullOrWhiteSpace(refreshToken))
+            if (string.IsNullOrWhiteSpace(request.RefreshToken))
             {
                 return ApiResponse<bool>.SuccessResponse(true);
             }
 
-            var storedToken = await _unitOfWork.RefreshTokens.GetByTokenAsync(refreshToken);
+            var storedToken = await _unitOfWork.RefreshTokens.GetByTokenAsync(request.RefreshToken);
 
             if (storedToken != null && storedToken.IsValid)
             {
@@ -604,5 +612,6 @@ namespace Mentora.Application.Services
             return ApiResponse<UserDto>.SuccessResponse(userDto);
         }
 
+        
     }
 }

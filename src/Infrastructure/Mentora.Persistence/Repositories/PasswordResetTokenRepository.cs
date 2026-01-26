@@ -26,7 +26,7 @@ namespace Mentora.Persistence.Repositories
         public async Task<PasswordResetToken?> GetActiveTokenAsync(string token)
         {
             return await _context.PasswordResetTokens
-                .FirstOrDefaultAsync(t => t.Token == token && t.IsActive);
+                .FirstOrDefaultAsync(t => t.Token == token);
         }
     }
 }
