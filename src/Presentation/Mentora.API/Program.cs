@@ -1,7 +1,5 @@
-using FluentValidation;
+﻿using FluentValidation;
 using FluentValidation.AspNetCore;
-using Microsoft.EntityFrameworkCore;
-using Microsoft.IdentityModel.Tokens;
 using Mentora.Application.Interfaces;
 using Mentora.Application.Interfaces.Repositories;
 using Mentora.Application.Services;
@@ -10,9 +8,12 @@ using Mentora.Infrastructure.Configuration;
 using Mentora.Infrastructure.Services;
 using Mentora.Persistence;
 using Mentora.Persistence.Repositories;
-using System.Text;
-using Scalar.AspNetCore;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
+using Microsoft.EntityFrameworkCore;
+using Microsoft.IdentityModel.Tokens;
+using Microsoft.IdentityModel.Tokens.Experimental;
+using Scalar.AspNetCore;
+using System.Text;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -44,6 +45,29 @@ builder.Services.AddScoped<IFileUploadService, FileUploadService>();
 // Add FluentValidation
 builder.Services.AddFluentValidationAutoValidation();
 builder.Services.AddValidatorsFromAssemblyContaining<RegisterInitialRequestValidator>();
+builder.Services.AddAuthentication(options =>
+{
+    // بنثبت إن نظامنا الافتراضي هو Bearer (JWT)
+    options.DefaultAuthenticateScheme = JwtBearerDefaults.AuthenticationScheme;
+    options.DefaultChallengeScheme = JwtBearerDefaults.AuthenticationScheme;
+    options.DefaultScheme = JwtBearerDefaults.AuthenticationScheme;
+})
+.AddJwtBearer(options =>
+{
+    options.SaveToken = true;
+    options.RequireHttpsMetadata = false; // خليه false في مرحلة التطوير (Development)
+    options.TokenValidationParameters = new TokenValidationParameters
+    { 
+ ValidateIssuer = false, // عطليها مؤقتاً للتجربة
+    ValidateAudience = false,
+        ValidateLifetime = true,
+        ValidateIssuerSigningKey = true,
+        ValidIssuer = builder.Configuration["MentoraApi"],
+        ValidAudience = builder.Configuration["MentoraFrontend"],
+        IssuerSigningKey = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(builder.Configuration["Jwt:Key"])),
+        ClockSkew = TimeSpan.Zero
+    };
+});
 
 // Add Authorization
 builder.Services.AddAuthorization(options =>

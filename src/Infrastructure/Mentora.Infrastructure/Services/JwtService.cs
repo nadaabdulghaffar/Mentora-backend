@@ -31,10 +31,10 @@ public class JwtService : IJwtService
         var creds = new SigningCredentials(key, SecurityAlgorithms.HmacSha256);
 
         var token = new JwtSecurityToken(
-            issuer: _configuration["Jwt:Issuer"],
-            audience: _configuration["Jwt:Audience"],
+            issuer: _configuration["MentoraApi"],
+            audience: _configuration["MentoraFrontend"],
             claims: claims,
-            expires: DateTime.Now.AddMinutes(60),
+          expires: DateTime.UtcNow.AddMinutes(60),
             signingCredentials: creds
         );
 
