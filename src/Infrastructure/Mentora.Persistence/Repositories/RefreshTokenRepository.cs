@@ -21,13 +21,13 @@ public class RefreshTokenRepository : IRefreshTokenRepository
     public async Task<RefreshToken?> GetByTokenAsync(string token)
     {
         return await _context.RefreshTokens
-            .FirstOrDefaultAsync(t => t.Token == token);
+            .FirstOrDefaultAsync(t => t.TokenHash == token);
     }
 
     public async Task RevokeTokenAsync(string token)
     {
         var refreshToken = await _context.RefreshTokens
-            .FirstOrDefaultAsync(t => t.Token == token);
+            .FirstOrDefaultAsync(t => t.TokenHash == token);
 
         if (refreshToken != null)
         {

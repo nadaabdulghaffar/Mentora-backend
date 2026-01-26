@@ -1,5 +1,6 @@
 public class CompleteMentorProfileRequest
 {
+    public string RegistrationToken { get; set; } = null!;  // From previous step
     public int DomainId { get; set; }
     public int YearsOfExperience { get; set; }
     public string? LinkedInUrl { get; set; }

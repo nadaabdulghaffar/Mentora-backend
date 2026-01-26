@@ -11,5 +11,6 @@ namespace Mentora.Application.Interfaces
     {
         string GenerateAccessToken(User user);
         string GenerateRefreshToken();
+        string HashToken(string token);
     }
 }

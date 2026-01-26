@@ -44,16 +44,17 @@ public class AuthController : ControllerBase
     }
 
     [HttpPost("resend-verification")]
-    public async Task<IActionResult> ResendVerification([FromBody] VerifyEmailRequest request)
+
+    public async Task<IActionResult> ResendVerification([FromBody] ResendVerificationRequest request)
     {
         var result = await _authService.ResendVerificationEmailAsync(request);
         return Ok(result);
     }
 
-    [HttpPost("complete-registration")]
-    public async Task<IActionResult> CompleteRegistration([FromBody] CompleteRegistrationRequest request)
+    [HttpPost("select-role")]
+    public async Task<IActionResult> SelectRole([FromBody] SelectRoleRequest request)
     {
-        var result = await _authService.CompleteRegistrationAsync(request);
+        var result = await _authService.SelectRoleAsync(request);
 
         if (!result.Success)
             return BadRequest(result);
@@ -61,13 +62,10 @@ public class AuthController : ControllerBase
         return Ok(result);
     }
 
-    [Authorize]
     [HttpPost("complete-mentee-profile")]
     public async Task<IActionResult> CompleteMenteeProfile([FromBody] CompleteMenteeProfileRequest request)
     {
-        var userId = User.GetUserId();
-
-        var result = await _authService.CompleteMenteeProfileAsync(userId, request);
+        var result = await _authService.CompleteMenteeProfileProgressiveAsync(request);
 
         if (!result.Success)
             return BadRequest(result);
@@ -75,13 +73,10 @@ public class AuthController : ControllerBase
         return Ok(result);
     }
 
-    [Authorize]
     [HttpPost("complete-mentor-profile")]
     public async Task<IActionResult> CompleteMentorProfile([FromBody] CompleteMentorProfileRequest request)
     {
-        var userId = User.GetUserId();
-
-        var result = await _authService.CompleteMentorProfileAsync(userId, request);
+        var result = await _authService.CompleteMentorProfileProgressiveAsync(request);
 
         if (!result.Success)
             return BadRequest(result);

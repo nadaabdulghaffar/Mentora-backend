@@ -2,7 +2,8 @@ namespace Mentora.Application.DTOs.Auth;
 
 public class CompleteMenteeProfileRequest
 {
-	public int DomainId { get; set; }
+    public string RegistrationToken { get; set; } = null!;  // From previous step
+    public int DomainId { get; set; }
 	public string EducationStatus { get; set; } = null!;
 	public int? CareerGoalId { get; set; }
 	public int? LearningStyleId { get; set; }

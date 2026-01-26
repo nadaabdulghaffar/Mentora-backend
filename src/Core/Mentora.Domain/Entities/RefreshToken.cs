@@ -9,24 +9,24 @@ namespace Mentora.Domain.Entities
     public class RefreshToken
     {
 
-        public Guid Id { get; private set; } = Guid.NewGuid();
-        public Guid UserId { get; private set; }
-        public string Token { get; private set; } = null!;
-        public DateTime ExpiresAt { get; private set; }
-        public DateTime CreatedAt { get; private set; } = DateTime.UtcNow;
-        public bool IsRevoked { get; private set; }
-        public DateTime? RevokedAt { get; private set; }
+        public Guid TokenId { get; set; } = Guid.NewGuid(); // Renamed from Id
+        public Guid UserId { get; set; }
+        public string TokenHash { get; set; } = null!; // Renamed from Token
+        public DateTime ExpiresAt { get; set; }
+        public DateTime CreatedAt { get; set; } = DateTime.UtcNow;
+        public bool IsRevoked { get; set; }
+        public DateTime? RevokedAt { get; set; }
 
-        public User User { get; private set; } = null!;
+        public User User { get; set; } = null!;
 
-        private RefreshToken() { }
+        public RefreshToken() { } // made public for object initializer
 
-        public static RefreshToken Create(Guid userId, string token, TimeSpan validity)
+        public static RefreshToken Create(Guid userId, string tokenHash, TimeSpan validity)
         {
             return new RefreshToken
             {
                 UserId = userId,
-                Token = token,
+                TokenHash = tokenHash,
                 ExpiresAt = DateTime.UtcNow.Add(validity)
             };
         }

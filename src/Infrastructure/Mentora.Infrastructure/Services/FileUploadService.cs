@@ -23,7 +23,9 @@ public class FileUploadService : IFileUploadService
     {
         _environment = environment;
         _logger = logger;
-        _uploadPath = Path.Combine(_environment.WebRootPath, "uploads");
+
+        var webRoot = _environment.WebRootPath ?? Path.Combine(_environment.ContentRootPath, "wwwroot");
+        _uploadPath = Path.Combine(webRoot, "uploads");
 
         // Ensure upload directories exist
         Directory.CreateDirectory(Path.Combine(_uploadPath, "cvs"));
