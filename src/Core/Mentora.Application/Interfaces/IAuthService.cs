@@ -15,7 +15,7 @@ namespace Mentora.Application.Interfaces
         public Task<ApiResponse<RegistrationCompleteResponse>> CompleteMentorProfileProgressiveAsync(
      CompleteMentorProfileRequest request);
         Task<ApiResponse<bool>> ResendVerificationEmailAsync(ResendVerificationRequest request);
-   
+        Task<ApiResponse<AuthResponse>> ExternalLoginAsync(string email, string firstName, string lastName, string provider,bool remmberMe);
         Task<ApiResponse<AuthResponse>> LoginAsync(LoginRequest request);
         Task<ApiResponse<AuthResponse>> RefreshTokenAsync(RefreshTokenRequest request);
         Task<ApiResponse<bool>> LogoutAsync(RefreshTokenRequest request);

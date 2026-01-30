@@ -16,5 +16,6 @@ namespace Mentora.Application.DTOs.Auth
         [Required]
         [MinLength(8)]
         public string Password { get; set; } = null!;
+        public bool RememberMe { get; set; }
     }
 }

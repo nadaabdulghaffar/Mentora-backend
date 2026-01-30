@@ -654,7 +654,58 @@ namespace Mentora.Application.Services
 
 
 
+          public async Task<ApiResponse<AuthResponse>> ExternalLoginAsync(string email, string firstName, string lastName, string provider, bool rememberMe)
+        {
+            
+            var user = await _unitOfWork.Users.GetByEmailAsync(email.Trim().ToLower());
 
+            if (user == null)
+            {
+                user = new User
+                {
+                    UserId = Guid.NewGuid(),
+                    Email = email.Trim().ToLower(),
+                    FirstName = firstName,
+                    LastName = lastName,
+                    Role = UserRole.Mentee, 
+                    IsActive = true,
+                    IsEmailVerified = true,
+                    CreatedAt = DateTime.UtcNow,
+                };
+
+                await _unitOfWork.Users.CreateAsync(user);
+            }
+
+          //  if (!user.IsActive)
+             //   return ApiResponse<AuthResponse>.ErrorResponse("Account Is Not Active");
+
+            var accessToken = _jwtService.GenerateAccessToken(user);
+            var refreshTokenStr = _jwtService.GenerateRefreshToken();
+            var expiryTimeSpan = rememberMe ? TimeSpan.FromDays(30) : TimeSpan.FromDays(7);
+
+            var refreshToken = RefreshToken.Create(user.UserId, refreshTokenStr, expiryTimeSpan);
+
+            await _unitOfWork.RefreshTokens.CreateAsync(refreshToken);
+
+            await _unitOfWork.SaveChangesAsync();
+
+            var response = new AuthResponse
+            {
+                AccessToken = accessToken,
+                RefreshToken = refreshTokenStr,
+                ExpiresIn = 3600,
+                User = new UserDto
+                {
+                    UserId = user.UserId,
+                    Email = user.Email,
+                    FirstName = user.FirstName,
+                    LastName = user.LastName,
+                    Role = user.Role.ToString()
+                }
+            };
+
+            return ApiResponse<AuthResponse>.SuccessResponse(response);
+        }
 
 
         public async Task<ApiResponse<AuthResponse>> LoginAsync(LoginRequest request)
@@ -674,13 +725,14 @@ namespace Mentora.Application.Services
                 return ApiResponse<AuthResponse>.ErrorResponse("Email Or Password Is Wrong");
 
 
-            if (!user.IsActive)
-                return ApiResponse<AuthResponse>.ErrorResponse("Account Is Not Active");
-
+            //if (!user.IsActive)
+            //    return ApiResponse<AuthResponse>.ErrorResponse("Account Is Not Active");
 
             var accessToken = _jwtService.GenerateAccessToken(user);
             var refreshTokenStr = _jwtService.GenerateRefreshToken();
-            var refreshToken = RefreshToken.Create(user.UserId, refreshTokenStr, TimeSpan.FromDays(7));
+
+            var expiryTimeSpan = request.RememberMe ? TimeSpan.FromDays(30) : TimeSpan.FromDays(7);
+            var refreshToken = RefreshToken.Create(user.UserId, refreshTokenStr, expiryTimeSpan);
 
             await _unitOfWork.RefreshTokens.CreateAsync(refreshToken);
             await _unitOfWork.SaveChangesAsync();
