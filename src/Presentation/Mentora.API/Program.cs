@@ -8,6 +8,8 @@ using Mentora.Infrastructure.Configuration;
 using Mentora.Infrastructure.Services;
 using Mentora.Persistence;
 using Mentora.Persistence.Repositories;
+using Microsoft.AspNetCore.Authentication.Cookies;
+using Microsoft.AspNetCore.Authentication.Google;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.IdentityModel.Tokens;
@@ -47,27 +49,45 @@ builder.Services.AddFluentValidationAutoValidation();
 builder.Services.AddValidatorsFromAssemblyContaining<RegisterInitialRequestValidator>();
 builder.Services.AddAuthentication(options =>
 {
-    // بنثبت إن نظامنا الافتراضي هو Bearer (JWT)
+    
     options.DefaultAuthenticateScheme = JwtBearerDefaults.AuthenticationScheme;
     options.DefaultChallengeScheme = JwtBearerDefaults.AuthenticationScheme;
     options.DefaultScheme = JwtBearerDefaults.AuthenticationScheme;
+    options.DefaultScheme = CookieAuthenticationDefaults.AuthenticationScheme;
+    options.DefaultChallengeScheme = GoogleDefaults.AuthenticationScheme;
 })
 .AddJwtBearer(options =>
 {
     options.SaveToken = true;
-    options.RequireHttpsMetadata = false; // خليه false في مرحلة التطوير (Development)
+    options.RequireHttpsMetadata = false; 
     options.TokenValidationParameters = new TokenValidationParameters
     { 
- ValidateIssuer = false, // عطليها مؤقتاً للتجربة
-    ValidateAudience = false,
+ ValidateIssuer = true, 
+    ValidateAudience = true,
         ValidateLifetime = true,
         ValidateIssuerSigningKey = true,
-        ValidIssuer = builder.Configuration["MentoraApi"],
-        ValidAudience = builder.Configuration["MentoraFrontend"],
+        ValidIssuer = builder.Configuration["Jwt:Issuer"],
+        ValidAudience = builder.Configuration["Jwt:Audience"],
         IssuerSigningKey = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(builder.Configuration["Jwt:Key"])),
         ClockSkew = TimeSpan.Zero
     };
+}).AddCookie(options =>
+{
+    options.Cookie.SameSite = SameSiteMode.Lax; 
+})
+.AddGoogle(options =>
+{
+    options.ClientId = builder.Configuration["Authentication:Google:client_id"];
+    options.ClientSecret = builder.Configuration["Authentication:Google:client_secret"];
+    options.SignInScheme = CookieAuthenticationDefaults.AuthenticationScheme;
+}).AddGitHub(options =>
+{
+    options.ClientId = builder.Configuration["Authentication:GitHub:ClientId"];
+    options.ClientSecret = builder.Configuration["Authentication:GitHub:ClientSecret"];
+    options.CallbackPath = "/signin-github";
+    options.Scope.Add("user:email"); 
 });
+
 
 // Add Authorization
 builder.Services.AddAuthorization(options =>

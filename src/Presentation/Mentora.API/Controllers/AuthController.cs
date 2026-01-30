@@ -1,12 +1,15 @@
-using System;
-using System.Threading.Tasks;
-using Microsoft.AspNetCore.Authorization;
-using Microsoft.AspNetCore.Mvc;
+using Mentora.API.Extensions;
 using Mentora.Application.DTOs.Auth;
 using Mentora.Application.Interfaces;
-using System.Security.Claims;
 using Mentora.Domain.Entities;
-using Mentora.API.Extensions;
+using Microsoft.AspNetCore.Authentication;
+using Microsoft.AspNetCore.Authentication.Cookies;
+using Microsoft.AspNetCore.Authentication.Google;
+using Microsoft.AspNetCore.Authorization;
+using Microsoft.AspNetCore.Mvc;
+using System;
+using System.Security.Claims;
+using System.Threading.Tasks;
 
 namespace Mentora.API.Controllers;
 
@@ -82,6 +85,92 @@ public class AuthController : ControllerBase
             return BadRequest(result);
 
         return Ok(result);
+    }
+
+    [HttpGet("login-google")]
+    public IActionResult LoginGoogle(bool rememberMe = false)
+    {
+        var properties = new AuthenticationProperties
+        {
+            RedirectUri = Url.Action("GoogleResponse")
+        };
+
+        properties.Items.Add("rememberMe", rememberMe.ToString());
+
+        return Challenge(properties, GoogleDefaults.AuthenticationScheme);
+    }
+
+    [HttpGet("google-response")]
+    public async Task<IActionResult> GoogleResponse()
+    {
+   
+        var result = await HttpContext.AuthenticateAsync(CookieAuthenticationDefaults.AuthenticationScheme);
+
+        if (!result.Succeeded)
+            return BadRequest("Google Authentication Failed");
+
+        bool rememberMe = false;
+        if (result.Properties.Items.ContainsKey("rememberMe"))
+        {
+            bool.TryParse(result.Properties.Items["rememberMe"], out rememberMe);
+        }
+
+        var email = result.Principal.FindFirstValue(ClaimTypes.Email);
+        var firstName = result.Principal.FindFirstValue(ClaimTypes.GivenName) ?? "User";
+        var lastName = result.Principal.FindFirstValue(ClaimTypes.Surname) ?? "";
+
+        var authResult = await _authService.ExternalLoginAsync(email, firstName, lastName, "Google", rememberMe);
+
+        await HttpContext.SignOutAsync(CookieAuthenticationDefaults.AuthenticationScheme);
+
+        if (!authResult.Success)
+            return BadRequest(authResult.Message);
+
+        var redirectUrl = $"https://localhost:3000/auth-success?token={authResult.Data.AccessToken}&refreshToken={authResult.Data.RefreshToken}";
+        return Redirect(redirectUrl);
+    }
+
+    [HttpGet("login-github")]
+    public IActionResult LoginGitHub(bool rememberMe = false)
+    {
+        var properties = new AuthenticationProperties
+        {
+            RedirectUri = Url.Action("GitHubResponse") 
+        };
+
+        properties.Items.Add("rememberMe", rememberMe.ToString());
+
+        return Challenge(properties, "GitHub");
+    }
+
+    [HttpGet("github-response")]
+    public async Task<IActionResult> GitHubResponse()
+    {
+      
+        var result = await HttpContext.AuthenticateAsync(CookieAuthenticationDefaults.AuthenticationScheme);
+
+        if (!result.Succeeded)
+
+            return BadRequest("GitHub Authentication Failed");
+
+       
+        bool rememberMe = false;
+        if (result.Properties.Items.ContainsKey("rememberMe"))
+        {
+            bool.TryParse(result.Properties.Items["rememberMe"], out rememberMe);
+        }
+
+        var email = result.Principal.FindFirstValue(ClaimTypes.Email);
+        var name = result.Principal.FindFirstValue(ClaimTypes.Name) ?? "GitHub User";
+
+        var authResult = await _authService.ExternalLoginAsync(email, name, "", "GitHub", rememberMe);
+
+        await HttpContext.SignOutAsync(CookieAuthenticationDefaults.AuthenticationScheme);
+
+        if (!authResult.Success) return BadRequest(authResult.Message);
+
+        var redirectUrl = $"https://localhost:3000/auth-success?token={authResult.Data.AccessToken}&refreshToken={authResult.Data.RefreshToken}";
+        return Redirect(redirectUrl);
     }
 
     [HttpPost("login")]
