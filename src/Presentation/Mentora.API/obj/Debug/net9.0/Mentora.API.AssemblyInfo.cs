@@ -15,7 +15,7 @@ using System.Reflection;
 [assembly: System.Reflection.AssemblyCompanyAttribute("Mentora.API")]
 [assembly: System.Reflection.AssemblyConfigurationAttribute("Debug")]
 [assembly: System.Reflection.AssemblyFileVersionAttribute("1.0.0.0")]
-[assembly: System.Reflection.AssemblyInformationalVersionAttribute("1.0.0+4777e8483e4e0ffc92f69aed0e278c337b46ab62")]
+[assembly: System.Reflection.AssemblyInformationalVersionAttribute("1.0.0+4fa8d2bbdd98db5bc16262b66b922b6783db4834")]
 [assembly: System.Reflection.AssemblyProductAttribute("Mentora.API")]
 [assembly: System.Reflection.AssemblyTitleAttribute("Mentora.API")]
 [assembly: System.Reflection.AssemblyVersionAttribute("1.0.0.0")]
