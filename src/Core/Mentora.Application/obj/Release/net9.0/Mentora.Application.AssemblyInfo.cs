@@ -14,7 +14,7 @@ using System.Reflection;
 [assembly: System.Reflection.AssemblyCompanyAttribute("Mentora.Application")]
 [assembly: System.Reflection.AssemblyConfigurationAttribute("Release")]
 [assembly: System.Reflection.AssemblyFileVersionAttribute("1.0.0.0")]
-[assembly: System.Reflection.AssemblyInformationalVersionAttribute("1.0.0+ae97bd11a5c17794f76335d7e9c44cdd15a3f868")]
+[assembly: System.Reflection.AssemblyInformationalVersionAttribute("1.0.0+cbab448285f9e3340dbd5bf14f33addb68a5c879")]
 [assembly: System.Reflection.AssemblyProductAttribute("Mentora.Application")]
 [assembly: System.Reflection.AssemblyTitleAttribute("Mentora.Application")]
 [assembly: System.Reflection.AssemblyVersionAttribute("1.0.0.0")]

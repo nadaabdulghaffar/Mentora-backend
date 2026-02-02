@@ -488,6 +488,7 @@ namespace Mentora.Application.Services
             }
 
         }
+
         public async Task<ApiResponse<RegistrationCompleteResponse>> CompleteMentorProfileProgressiveAsync(
            CompleteMentorProfileRequest request)
         {
@@ -651,41 +652,145 @@ namespace Mentora.Application.Services
             }
 
         }
-
-
-
-          public async Task<ApiResponse<AuthResponse>> ExternalLoginAsync(string email, string firstName, string lastName, string provider, bool rememberMe)
+        
+        
+        public async Task<ApiResponse<AuthResponse>> ExternalLoginAsync(
+                  string email,
+                  string firstName,
+                  string lastName,
+                  string provider,
+                  bool rememberMe)
         {
-            
-            var user = await _unitOfWork.Users.GetByEmailAsync(email.Trim().ToLower());
-
-            if (user == null)
+            try
             {
-                user = new User
+                // Normalize email
+                email = email.ToLower().Trim();
+
+                // Check if user exists
+                var existingUser = await _unitOfWork.Users.GetByEmailAsync(email);
+
+                // CASE 1: NEW USER - Create account and skip to role selection
+                if (existingUser == null)
+                {
+                    return await CreateExternalUserAsync(email, firstName, lastName, provider);
+                }
+
+                // CASE 2: EXISTING USER - Check registration completion status
+                var session = await _unitOfWork.RegistrationSessions.GetByUserIdAsync(existingUser.UserId);
+
+                // User has completed registration - return full auth
+                if (session == null || session.IsCompleted)
+                {
+                    return await GenerateFullAuthResponseAsync(existingUser, rememberMe);
+                }
+
+                // User has incomplete registration - return registration flow response
+                return await GenerateRegistrationFlowAuthResponseAsync(existingUser, session);
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error during external login for {Email}", email);
+                return ApiResponse<AuthResponse>.ErrorResponse("An error occurred during login. Please try again.");
+            }
+        }
+
+  
+        /// Creates a new user from external provider (Google/GitHub) with email pre-verified
+        private async Task<ApiResponse<AuthResponse>> CreateExternalUserAsync(
+            string email,
+            string firstName,
+            string lastName,
+            string provider)
+        {
+            await _unitOfWork.BeginTransactionAsync();
+
+            try
+            {
+                // Create user with random password (since they use external auth)
+                var user = new User
                 {
                     UserId = Guid.NewGuid(),
-                    Email = email.Trim().ToLower(),
+                    Email = email,
+                    PasswordHash = _passwordHasher.HashPassword(GenerateSecureToken()), // Random password
                     FirstName = firstName,
                     LastName = lastName,
-                    Role = UserRole.Mentee, 
-                    IsActive = true,
-                    IsEmailVerified = true,
+                    Role = UserRole.Mentee, // Default, will be updated when user selects role
                     CreatedAt = DateTime.UtcNow,
+                    UpdatedAt = DateTime.UtcNow,
+                    IsActive = true, // Active immediately for external auth
+                    IsEmailVerified = true //  Email is verified via external provider
                 };
 
                 await _unitOfWork.Users.CreateAsync(user);
+                await _unitOfWork.SaveChangesAsync();
+
+                // Create registration session starting at EmailVerified step
+                // This skips steps 1 (registration) and 2 (email verification)
+                var registrationSession = new RegistrationSession
+                {
+                    SessionId = Guid.NewGuid(),
+                    UserId = user.UserId,
+                    SessionToken = GenerateSecureToken(),
+                    CurrentStep = RegistrationStep.EmailVerified, //  Skip directly to step 2
+                    CreatedAt = DateTime.UtcNow,
+                    ExpiresAt = DateTime.UtcNow.AddHours(24),
+                    IsCompleted = false
+                };
+
+                await _unitOfWork.RegistrationSessions.CreateAsync(registrationSession);
+                await _unitOfWork.SaveChangesAsync();
+                await _unitOfWork.CommitTransactionAsync();
+
+                // Return registration flow response (not full auth yet)
+                var response = new AuthResponse
+                {
+                    AccessToken = registrationSession.SessionToken, // Temporary registration token
+                    RefreshToken = "", // No refresh token yet
+                    ExpiresIn = (int)(registrationSession.ExpiresAt - DateTime.UtcNow).TotalSeconds,
+                    User = new UserDto
+                    {
+                        UserId = user.UserId,
+                        Email = user.Email,
+                        FirstName = user.FirstName,
+                        LastName = user.LastName,
+                        Role = null, // No role selected yet
+                        IsEmailVerified = true,
+                        IsActive = true,
+                        CreatedAt = user.CreatedAt,
+                        // Add custom property to indicate this is registration flow
+                        RegistrationStep = "EmailVerified",
+                        NextStep = "SelectRole"
+                    }
+                };
+
+                return ApiResponse<AuthResponse>.SuccessResponse(
+                    response,
+                    $"Account created successfully via {provider}. Please select your role to continue.");
             }
+            catch (Exception ex)
+            {
+                await _unitOfWork.RollbackTransactionAsync();
+                _logger.LogError(ex, "Error creating external user for {Email}", email);
+                throw;
+            }
+        }
 
-          //  if (!user.IsActive)
-             //   return ApiResponse<AuthResponse>.ErrorResponse("Account Is Not Active");
-
+        /// Generates full authentication response for completed registrations
+        private async Task<ApiResponse<AuthResponse>> GenerateFullAuthResponseAsync(User user, bool rememberMe)
+        {
+            // Generate real JWT tokens
             var accessToken = _jwtService.GenerateAccessToken(user);
             var refreshTokenStr = _jwtService.GenerateRefreshToken();
-            var expiryTimeSpan = rememberMe ? TimeSpan.FromDays(30) : TimeSpan.FromDays(7);
 
+            // Create refresh token with appropriate expiry
+            var expiryTimeSpan = rememberMe ? TimeSpan.FromDays(30) : TimeSpan.FromDays(7);
             var refreshToken = RefreshToken.Create(user.UserId, refreshTokenStr, expiryTimeSpan);
 
             await _unitOfWork.RefreshTokens.CreateAsync(refreshToken);
+
+            // Update last login
+            user.LastLogin = DateTime.UtcNow;
+            await _unitOfWork.Users.UpdateAsync(user);
 
             await _unitOfWork.SaveChangesAsync();
 
@@ -693,19 +798,128 @@ namespace Mentora.Application.Services
             {
                 AccessToken = accessToken,
                 RefreshToken = refreshTokenStr,
-                ExpiresIn = 3600,
+                ExpiresIn = 3600, // 1 hour
                 User = new UserDto
                 {
                     UserId = user.UserId,
                     Email = user.Email,
                     FirstName = user.FirstName,
                     LastName = user.LastName,
-                    Role = user.Role.ToString()
+                    Role = user.Role.ToString(),
+                    IsEmailVerified = user.IsEmailVerified,
+                    IsActive = user.IsActive,
+                    CreatedAt = user.CreatedAt
                 }
             };
 
-            return ApiResponse<AuthResponse>.SuccessResponse(response);
+            return ApiResponse<AuthResponse>.SuccessResponse(response, "Login successful!");
         }
+
+        /// Generates registration flow response for incomplete registrations
+        private async Task<ApiResponse<AuthResponse>> GenerateRegistrationFlowAuthResponseAsync(
+            User user,
+            RegistrationSession session)
+        {
+            // Check if session is expired
+            if (session.ExpiresAt < DateTime.UtcNow)
+            {
+                // Refresh the session
+                session.SessionToken = GenerateSecureToken();
+                session.ExpiresAt = DateTime.UtcNow.AddHours(24);
+                await _unitOfWork.RegistrationSessions.UpdateAsync(session);
+                await _unitOfWork.SaveChangesAsync();
+            }
+
+            // Determine next step based on current step
+            string currentStep = session.CurrentStep.ToString();
+            string nextStep = session.CurrentStep switch
+            {
+                RegistrationStep.EmailVerificationPending => "VerifyEmail",
+                RegistrationStep.EmailVerified => "SelectRole",
+                RegistrationStep.RoleSelected => "CompleteProfile",
+                _ => "Unknown"
+            };
+
+            var response = new AuthResponse
+            {
+                AccessToken = session.SessionToken, // Temporary registration token
+                RefreshToken = "", // No refresh token during registration
+                ExpiresIn = (int)(session.ExpiresAt - DateTime.UtcNow).TotalSeconds,
+                User = new UserDto
+                {
+                    UserId = user.UserId,
+                    Email = user.Email,
+                    FirstName = user.FirstName,
+                    LastName = user.LastName,
+                    Role = user.Role == UserRole.Mentee && session.CurrentStep < RegistrationStep.RoleSelected
+                        ? null
+                        : user.Role.ToString(),
+                    IsEmailVerified = user.IsEmailVerified,
+                    IsActive = user.IsActive,
+                    CreatedAt = user.CreatedAt,
+                    RegistrationStep = currentStep,
+                    NextStep = nextStep
+                }
+            };
+
+            return ApiResponse<AuthResponse>.SuccessResponse(
+                response,
+                $"Please complete your registration. Next step: {nextStep}");
+        }
+
+
+        //public async Task<ApiResponse<AuthResponse>> ExternalLoginAsync(string email, string firstName, string lastName, string provider, bool rememberMe)
+        //{
+            
+        //    var user = await _unitOfWork.Users.GetByEmailAsync(email.Trim().ToLower());
+
+        //    if (user == null)
+        //    {
+        //        user = new User
+        //        {
+        //            UserId = Guid.NewGuid(),
+        //            Email = email.Trim().ToLower(),
+        //            FirstName = firstName,
+        //            LastName = lastName,
+        //            Role = UserRole.Mentee, 
+        //            IsActive = true,
+        //            IsEmailVerified = true,
+        //            CreatedAt = DateTime.UtcNow,
+        //        };
+
+        //        await _unitOfWork.Users.CreateAsync(user);
+        //    }
+
+        //  //  if (!user.IsActive)
+        //     //   return ApiResponse<AuthResponse>.ErrorResponse("Account Is Not Active");
+
+        //    var accessToken = _jwtService.GenerateAccessToken(user);
+        //    var refreshTokenStr = _jwtService.GenerateRefreshToken();
+        //    var expiryTimeSpan = rememberMe ? TimeSpan.FromDays(30) : TimeSpan.FromDays(7);
+
+        //    var refreshToken = RefreshToken.Create(user.UserId, refreshTokenStr, expiryTimeSpan);
+
+        //    await _unitOfWork.RefreshTokens.CreateAsync(refreshToken);
+
+        //    await _unitOfWork.SaveChangesAsync();
+
+        //    var response = new AuthResponse
+        //    {
+        //        AccessToken = accessToken,
+        //        RefreshToken = refreshTokenStr,
+        //        ExpiresIn = 3600,
+        //        User = new UserDto
+        //        {
+        //            UserId = user.UserId,
+        //            Email = user.Email,
+        //            FirstName = user.FirstName,
+        //            LastName = user.LastName,
+        //            Role = user.Role.ToString()
+        //        }
+        //    };
+
+        //    return ApiResponse<AuthResponse>.SuccessResponse(response);
+        //}
 
 
         public async Task<ApiResponse<AuthResponse>> LoginAsync(LoginRequest request)
